@@ -12,8 +12,348 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
   <!-- Three.js r128 -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-  <!-- PeerJS 1.5.2 for Serverless WebRTC DataChannels -->
-  <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+  <!-- HYBRID WEBRTC + MULTI-BROKER WSS DROP-IN REPLACEMENT FOR PEERJS -->
+<script src="https://unpkg.com/mqtt@5.3.4/dist/mqtt.min.js"></script>
+<script>
+(function () {
+  const BROKERS = [
+    'wss://broker.emqx.io:8084/mqtt',
+    'wss://broker.hivemq.com:8884/mqtt',
+    'wss://test.mosquitto.org:8081/mqtt'
+  ];
+
+  const RTC_CONFIG = {
+    iceServers: [
+      { urls: 'stun:stun.l.google.com:19302' },
+      { urls: 'stun:stun.cloudflare.com:3478' }
+    ]
+  };
+
+  class SimpleEmitter {
+    constructor() { this._events = {}; }
+    on(evt, fn) { (this._events[evt] = this._events[evt] || []).push(fn); return this; }
+    off(evt, fn) {
+      if (!this._events[evt]) return;
+      this._events[evt] = this._events[evt].filter(f => f !== fn);
+    }
+    emit(evt, ...args) {
+      (this._events[evt] || []).slice().forEach(fn => {
+        try { fn(...args); } catch (e) { console.error(e); }
+      });
+    }
+  }
+
+  class HybridDataConnection extends SimpleEmitter {
+    constructor(localPeer, remotePeerId, isInitiator, connId) {
+      super();
+      this.localPeer = localPeer;
+      this.peer = remotePeerId;
+      this.isInitiator = isInitiator;
+      this.connId = connId || ('c_' + Math.random().toString(36).slice(2, 10));
+      this.open = false;
+      this.dc = null;
+      this.pc = null;
+      this._helloTimer = null;
+
+      if (this.isInitiator) {
+        this._startHandshake();
+      }
+    }
+
+    _startHandshake() {
+      const sendHello = () => {
+        if (this.open || this.localPeer.destroyed) {
+          clearInterval(this._helloTimer);
+          return;
+        }
+        this.localPeer._publish(this.peer, {
+          k: 'HELLO',
+          from: this.localPeer.id,
+          cid: this.connId
+        });
+      };
+
+      sendHello();
+      this._helloTimer = setInterval(sendHello, 900);
+
+      setTimeout(() => {
+        if (!this.open) {
+          clearInterval(this._helloTimer);
+          const err = new Error('Could not reach host');
+          err.type = 'peer-unavailable';
+          this.emit('error', err);
+          this.localPeer.emit('error', err);
+        }
+      }, 10000);
+    }
+
+    _initWebRTC() {
+      try {
+        this.pc = new RTCPeerConnection(RTC_CONFIG);
+
+        this.pc.onicecandidate = (e) => {
+          if (e.candidate) {
+            this.localPeer._publish(this.peer, {
+              k: 'ICE',
+              from: this.localPeer.id,
+              cid: this.connId,
+              cand: e.candidate
+            });
+          }
+        };
+
+        if (this.isInitiator) {
+          const dc = this.pc.createDataChannel('s09_fast', { ordered: true });
+          this._bindDataChannel(dc);
+          this.pc.createOffer()
+            .then(offer => this.pc.setLocalDescription(offer))
+            .then(() => {
+              this.localPeer._publish(this.peer, {
+                k: 'OFFER',
+                from: this.localPeer.id,
+                cid: this.connId,
+                sdp: this.pc.localDescription
+              });
+            })
+            .catch(() => {});
+        } else {
+          this.pc.ondatachannel = (e) => this._bindDataChannel(e.channel);
+        }
+      } catch (e) {
+        // Fallback stays on WebSocket automatically
+      }
+    }
+
+    _bindDataChannel(dc) {
+      dc.onopen = () => {
+        this.dc = dc;
+        console.log('[Network] Upgraded to Direct WebRTC DataChannel (Zero-Latency P2P)');
+      };
+      dc.onclose = () => { this.dc = null; };
+      dc.onerror = () => { this.dc = null; };
+      dc.onmessage = (e) => {
+        try {
+          const parsed = JSON.parse(e.data);
+          this.emit('data', parsed.d);
+        } catch (err) {}
+      };
+    }
+
+    async _handleSignal(msg) {
+      if (msg.k === 'WELCOME' && this.isInitiator) {
+        clearInterval(this._helloTimer);
+        if (!this.open) {
+          this.open = true;
+          this.emit('open');
+          this._initWebRTC();
+        }
+      } else if (msg.k === 'OFFER' && !this.isInitiator) {
+        if (!this.pc) this._initWebRTC();
+        try {
+          await this.pc.setRemoteDescription(new RTCSessionDescription(msg.sdp));
+          const answer = await this.pc.createAnswer();
+          await this.pc.setLocalDescription(answer);
+          this.localPeer._publish(this.peer, {
+            k: 'ANSWER',
+            from: this.localPeer.id,
+            cid: this.connId,
+            sdp: this.pc.localDescription
+          });
+        } catch (e) {}
+      } else if (msg.k === 'ANSWER' && this.isInitiator && this.pc) {
+        try {
+          await this.pc.setRemoteDescription(new RTCSessionDescription(msg.sdp));
+        } catch (e) {}
+      } else if (msg.k === 'ICE' && this.pc && msg.cand) {
+        try {
+          await this.pc.addIceCandidate(new RTCIceCandidate(msg.cand));
+        } catch (e) {}
+      } else if (msg.k === 'DATA') {
+        this.emit('data', msg.d);
+      } else if (msg.k === 'CLOSE') {
+        this.close(true);
+      }
+    }
+
+    send(data) {
+      if (!this.open) return;
+      // Fast path: Direct P2P WebRTC DataChannel if open
+      if (this.dc && this.dc.readyState === 'open') {
+        try {
+          this.dc.send(JSON.stringify({ d: data }));
+          return;
+        } catch (e) {}
+      }
+      // Guaranteed path: Multi-broker WebSocket transport
+      this.localPeer._publish(this.peer, {
+        k: 'DATA',
+        from: this.localPeer.id,
+        cid: this.connId,
+        d: data
+      });
+    }
+
+    close(remoteTriggered = false) {
+      clearInterval(this._helloTimer);
+      if (!this.open && !remoteTriggered) return;
+      this.open = false;
+      if (!remoteTriggered && this.localPeer && !this.localPeer.destroyed) {
+        this.localPeer._publish(this.peer, {
+          k: 'CLOSE',
+          from: this.localPeer.id,
+          cid: this.connId
+        });
+      }
+      if (this.dc) { try { this.dc.close(); } catch (e) {} this.dc = null; }
+      if (this.pc) { try { this.pc.close(); } catch (e) {} this.pc = null; }
+      this.emit('close');
+    }
+  }
+
+  class HybridPeer extends SimpleEmitter {
+    constructor(id, options) {
+      super();
+      if (typeof id === 'object') { options = id; id = null; }
+      this.id = id || ('SECTOR09-CLIENT-' + Math.random().toString(36).substring(2, 9).toUpperCase());
+      this.options = options || {};
+      this.destroyed = false;
+      this.disconnected = false;
+      this._conns = new Map();
+      this._client = null;
+      this._brokerIdx = 0;
+
+      this._connectBroker();
+    }
+
+    _inboxTopic(peerId) {
+      return 's09_net_v2/inbox/' + peerId;
+    }
+
+    _connectBroker() {
+      if (this.destroyed) return;
+      const url = BROKERS[this._brokerIdx % BROKERS.length];
+
+      try {
+        this._client = mqtt.connect(url, {
+          connectTimeout: 4500,
+          reconnectPeriod: 2000,
+          clean: true
+        });
+      } catch (e) {
+        this._tryNextBroker();
+        return;
+      }
+
+      const failTimer = setTimeout(() => {
+        if (this._client && !this._client.connected) {
+          this._tryNextBroker();
+        }
+      }, 4800);
+
+      this._client.on('connect', () => {
+        clearTimeout(failTimer);
+        if (this.destroyed) return;
+        this._client.subscribe(this._inboxTopic(this.id), { qos: 0 }, (err) => {
+          if (err) {
+            this._tryNextBroker();
+            return;
+          }
+          console.log('[Network] Connected via Signaling Broker:', url);
+          this.emit('open', this.id);
+        });
+      });
+
+      this._client.on('message', (topic, payload) => {
+        if (this.destroyed) return;
+        let msg;
+        try { msg = JSON.parse(payload.toString()); } catch (e) { return; }
+        if (!msg || !msg.k) return;
+
+        if (msg.k === 'HELLO') {
+          let conn = this._conns.get(msg.cid);
+          if (!conn) {
+            conn = new HybridDataConnection(this, msg.from, false, msg.cid);
+            this._conns.set(msg.cid, conn);
+            this.emit('connection', conn);
+            setTimeout(() => {
+              if (!conn.open) {
+                conn.open = true;
+                conn.emit('open');
+              }
+              this._publish(msg.from, {
+                k: 'WELCOME',
+                from: this.id,
+                cid: msg.cid
+              });
+            }, 25);
+          } else {
+            this._publish(msg.from, {
+              k: 'WELCOME',
+              from: this.id,
+              cid: msg.cid
+            });
+          }
+          return;
+        }
+
+        const conn = this._conns.get(msg.cid);
+        if (conn) {
+          conn._handleSignal(msg);
+        }
+      });
+
+      this._client.on('error', () => {});
+    }
+
+    _tryNextBroker() {
+      if (this.destroyed) return;
+      if (this._client) {
+        try { this._client.end(true); } catch (e) {}
+        this._client = null;
+      }
+      this._brokerIdx++;
+      if (this._brokerIdx < BROKERS.length * 2) {
+        console.warn('[Network] Switching to backup broker...');
+        this._connectBroker();
+      } else {
+        const err = new Error('All signaling brokers unreachable');
+        err.type = 'network';
+        this.emit('error', err);
+      }
+    }
+
+    _publish(targetPeerId, obj) {
+      if (!this._client || !this._client.connected) return;
+      this._client.publish(this._inboxTopic(targetPeerId), JSON.stringify(obj), { qos: 0 });
+    }
+
+    connect(remotePeerId) {
+      const conn = new HybridDataConnection(this, remotePeerId, true);
+      this._conns.set(conn.connId, conn);
+      return conn;
+    }
+
+    disconnect() {
+      this.disconnected = true;
+      this.emit('disconnected');
+    }
+
+    destroy() {
+      if (this.destroyed) return;
+      this.destroyed = true;
+      this._conns.forEach(c => c.close());
+      this._conns.clear();
+      if (this._client) {
+        try { this._client.end(true); } catch (e) {}
+        this._client = null;
+      }
+      this.emit('close');
+    }
+  }
+
+  window.Peer = HybridPeer;
+})();
+</script>
 
   <style>
     :root {
