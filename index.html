@@ -1,0 +1,2505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SECTOR 09 // CO-OP CONTAINMENT EXTRACTION</title>
+  <!-- Tailwind CSS via CDN for strict utilitarian layout utilities -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts: Inter & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Three.js r128 -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <!-- PeerJS 1.5.2 for Serverless WebRTC DataChannels -->
+  <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+
+  <style>
+    :root {
+      --bg-charcoal: #111111;
+      --fg-offwhite: #F4F4F0;
+      --accent-yellow: #EAB308;
+      --alert-red: #DC2626;
+      --border-muted: #292929;
+      --text-muted: #888884;
+    }
+
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: var(--bg-charcoal);
+      color: var(--fg-offwhite);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    .font-mono-tech {
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    #canvas-container {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 1;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    /* Minimalist HUD Layer */
+    #hud-layer {
+      position: fixed;
+      inset: 0;
+      z-index: 10;
+      pointer-events: none;
+      display: none;
+    }
+
+    .hud-shadow {
+      text-shadow: 0 2px 6px rgba(0, 0, 0, 0.95), 0 0 2px rgba(0, 0, 0, 1);
+    }
+
+    /* Center 2px Reticle */
+    #reticle {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 3px;
+      height: 3px;
+      background-color: var(--fg-offwhite);
+      transform: translate(-50%, -50%);
+      opacity: 0.85;
+    }
+
+    /* Contextual Prompt below Reticle */
+    #interaction-prompt {
+      position: absolute;
+      top: calc(50% + 18px);
+      left: 50%;
+      transform: translateX(-50%);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      white-space: nowrap;
+      text-shadow: 0 1px 4px rgba(0, 0, 0, 0.95);
+      transition: opacity 0.12s ease;
+    }
+
+    /* Utilitarian Button Styling */
+    .btn-industrial {
+      background-color: #1A1A1A;
+      color: var(--fg-offwhite);
+      border: 1px solid #333333;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      padding: 12px 18px;
+      cursor: pointer;
+      transition: background-color 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+    }
+
+    .btn-industrial:hover:not(:disabled) {
+      background-color: var(--fg-offwhite);
+      color: var(--bg-charcoal);
+      border-color: var(--fg-offwhite);
+    }
+
+    .btn-industrial:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+    }
+
+    .btn-hazard {
+      background-color: var(--accent-yellow);
+      color: var(--bg-charcoal);
+      border: 1px solid var(--accent-yellow);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      padding: 12px 20px;
+      cursor: pointer;
+      transition: background-color 0.12s ease, opacity 0.12s ease;
+    }
+
+    .btn-hazard:hover:not(:disabled) {
+      background-color: #FACC15;
+    }
+
+    .btn-hazard:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+    }
+
+    .input-industrial {
+      background-color: #0B0B0B;
+      border: 1px solid #333333;
+      color: var(--fg-offwhite);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 15px;
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+      padding: 11px 14px;
+      outline: none;
+    }
+
+    .input-industrial:focus {
+      border-color: var(--accent-yellow);
+    }
+
+    /* Subtle Vignette for Subterranean Atmosphere */
+    #vignette {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 5;
+      background: radial-gradient(circle at center, rgba(17,17,17,0) 55%, rgba(0,0,0,0.65) 100%);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 3D Viewport Container -->
+  <div id="canvas-container"></div>
+  <div id="vignette"></div>
+
+  <!-- Minimalist In-Game HUD -->
+  <div id="hud-layer">
+    <!-- Top Center: Stark Countdown Timer -->
+    <div class="absolute top-7 left-1/2 -translate-x-1/2 text-center">
+      <div id="hud-timer" class="font-mono-tech text-3xl font-semibold tracking-[0.2em] text-[#F4F4F0] hud-shadow">
+        05:00
+      </div>
+      <div id="hud-substatus" class="font-mono-tech text-[10px] tracking-[0.22em] text-[#888884] uppercase mt-1 hud-shadow">
+        SECTOR 09 // CONTAINMENT ACTIVE
+      </div>
+    </div>
+
+    <!-- Top Right: Minimal Network Telemetry -->
+    <div class="absolute top-7 right-8 text-right font-mono-tech text-[11px] tracking-[0.14em] text-[#888884] hud-shadow space-y-1">
+      <div id="hud-net-role">ROLE: HOST</div>
+      <div id="hud-ping">PING: -- MS</div>
+      <div id="hud-coop-dist">PARTNER: -- M</div>
+    </div>
+
+    <!-- Center Screen: 2px White Reticle & Contextual Prompt -->
+    <div id="reticle"></div>
+    <div id="interaction-prompt" class="opacity-0 text-[#F4F4F0]"></div>
+
+    <!-- Bottom Left: Minimal Status Indicator -->
+    <div class="absolute bottom-7 left-8 font-mono-tech text-xs tracking-[0.15em] space-y-1.5 hud-shadow">
+      <div id="hud-key-status" class="text-[#F4F4F0]">[KEY: NONE]</div>
+      <div id="hud-door-status" class="text-[#F4F4F0]">[DOOR LOCKS: 0/2]</div>
+      <div id="hud-torch-status" class="text-[#888884] text-[10px] pt-1">[F] TORCH: ON // [SHIFT] SPRINT // [E] INTERACT</div>
+      <div id="hud-practice-hint" class="hidden text-[#EAB308] text-[10px]">[B] DISPATCH BROTHER BOT (SOLO TEST MODE)</div>
+    </div>
+
+    <!-- Bottom Right: Extraction Zone Co-op Presence Indicator -->
+    <div id="hud-extraction-zone" class="hidden absolute bottom-7 right-8 font-mono-tech text-xs tracking-[0.15em] text-right hud-shadow">
+      <div class="text-[#EAB308]">[EXTRACTION ZONE PRESENCE: <span id="hud-zone-count">0/2</span>]</div>
+      <div class="text-[10px] text-[#888884] mt-0.5">BOTH OPERATIVES REQUIRED AT PERIMETER BLAST DOOR</div>
+    </div>
+  </div>
+
+  <!-- Pause / Pointer Lock Resume Overlay -->
+  <div id="pause-overlay" class="hidden fixed inset-0 z-20 bg-[#111111]/85 flex flex-col items-center justify-center p-6">
+    <div class="w-full max-w-md border border-[#292929] bg-[#111111] p-8">
+      <div class="font-mono-tech text-[10px] tracking-[0.22em] text-[#888884] uppercase mb-2">SYSTEM PAUSED</div>
+      <h2 class="font-mono-tech text-lg tracking-[0.16em] text-[#F4F4F0] uppercase font-semibold mb-4">CONTROL LINK SUSPENDED</h2>
+      <p class="text-xs text-[#888884] leading-relaxed mb-6">
+        Simulation clock and network telemetry remain active in the background. Click below to re-engage first-person visor lock.
+      </p>
+      <div class="flex flex-col gap-3">
+        <button id="btn-resume" class="btn-hazard w-full">RE-ENGAGE VISOR LOCK</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Lobby Overlay (Matte Charcoal Utilitarian Screen) -->
+  <div id="lobby-overlay" class="fixed inset-0 z-30 bg-[#111111] flex flex-col justify-between p-6 md:p-12 overflow-y-auto">
+    <!-- Top Header Bar -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between border-b border-[#292929] pb-5 gap-4">
+      <div>
+        <div class="font-mono-tech text-[10px] tracking-[0.25em] text-[#EAB308] uppercase">
+          DEPARTMENT OF SUBTERRANEAN CONTAINMENT // P2P WEBRTC LINK
+        </div>
+        <h1 class="font-mono-tech text-xl md:text-2xl font-semibold tracking-[0.15em] text-[#F4F4F0] uppercase mt-1">
+          SECTOR 09 // DUAL-KEY EXTRACTION
+        </h1>
+      </div>
+      <div class="flex items-center gap-6 font-mono-tech text-xs tracking-[0.15em]">
+        <div>
+          <span class="text-[#888884]">LINK STATE: </span>
+          <span id="lobby-link-state" class="text-[#F4F4F0]">STANDBY</span>
+        </div>
+        <div>
+          <span class="text-[#888884]">LATENCY: </span>
+          <span id="lobby-ping" class="text-[#F4F4F0]">-- MS</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Center Session Grid -->
+    <div class="my-auto py-8 w-full max-w-4xl mx-auto">
+      <!-- Mode Selector Tabs -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+        <!-- Left Column: CREATE SESSION (HOST) -->
+        <div class="border border-[#292929] bg-[#141414] p-6 md:p-8 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-4">
+              <span class="font-mono-tech text-[10px] tracking-[0.2em] text-[#888884] uppercase">OPERATIVE 01 // HOST</span>
+              <span class="font-mono-tech text-[10px] tracking-[0.2em] text-[#EAB308] uppercase">AUTHORITATIVE CLOCK</span>
+            </div>
+            <h2 class="font-mono-tech text-base font-semibold tracking-[0.14em] text-[#F4F4F0] uppercase mb-2">
+              CREATE SESSION
+            </h2>
+            <p class="text-xs text-[#888884] leading-relaxed mb-6">
+              Initialize a deterministic maze seed and generate a 5-character tactical room code for your brother to connect directly via WebRTC.
+            </p>
+
+            <button id="btn-create-session" class="btn-industrial w-full mb-6">
+              GENERATE ROOM CODE
+            </button>
+
+            <!-- Host Room Code Readout -->
+            <div id="host-code-panel" class="hidden border border-[#292929] bg-[#0B0B0B] p-4 mb-6">
+              <div class="font-mono-tech text-[10px] tracking-[0.2em] text-[#888884] uppercase mb-1">
+                SESSION ACCESS CODE
+              </div>
+              <div class="flex items-center justify-between gap-3">
+                <div id="host-room-code" class="font-mono-tech text-2xl font-bold tracking-[0.3em] text-[#EAB308]">
+                  -----
+                </div>
+                <button id="btn-copy-code" class="btn-industrial py-2 px-3 text-[10px]">
+                  COPY CODE
+                </button>
+              </div>
+              <div id="host-wait-status" class="font-mono-tech text-[10px] tracking-[0.15em] text-[#888884] uppercase mt-3">
+                AWAITING OPERATIVE 02 CONNECTION...
+              </div>
+            </div>
+          </div>
+
+          <div class="pt-4 border-t border-[#222222] space-y-2.5">
+            <button id="btn-start-expedition" class="btn-hazard w-full" disabled>
+              START EXPEDITION (AWAITING PARTNER)
+            </button>
+            <button id="btn-solo-practice" class="btn-industrial w-full">
+              SOLO TEST EXPEDITION (IMMEDIATE)
+            </button>
+          </div>
+        </div>
+
+        <!-- Right Column: JOIN SESSION (CLIENT) -->
+        <div class="border border-[#292929] bg-[#141414] p-6 md:p-8 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-4">
+              <span class="font-mono-tech text-[10px] tracking-[0.2em] text-[#888884] uppercase">OPERATIVE 02 // CLIENT</span>
+              <span class="font-mono-tech text-[10px] tracking-[0.2em] text-[#888884] uppercase">P2P DATACHANNEL</span>
+            </div>
+            <h2 class="font-mono-tech text-base font-semibold tracking-[0.14em] text-[#F4F4F0] uppercase mb-2">
+              JOIN SESSION
+            </h2>
+            <p class="text-xs text-[#888884] leading-relaxed mb-6">
+              Enter the 5-character room code generated by Operative 01 to synchronize the maze seed and establish a direct zero-latency peer link.
+            </p>
+
+            <div class="mb-4">
+              <label for="input-join-code" class="block font-mono-tech text-[10px] tracking-[0.2em] text-[#888884] uppercase mb-2">
+                ENTER 5-CHARACTER ROOM CODE
+              </label>
+              <input
+                id="input-join-code"
+                type="text"
+                maxlength="5"
+                placeholder="X7K9M"
+                class="input-industrial w-full"
+                autocomplete="off"
+                spellcheck="false"
+              />
+            </div>
+
+            <button id="btn-join-session" class="btn-industrial w-full mb-6">
+              CONNECT TO HOST
+            </button>
+          </div>
+
+          <!-- Operational Briefing Rules -->
+          <div class="border border-[#222222] bg-[#0E0E0E] p-4">
+            <div class="font-mono-tech text-[10px] tracking-[0.2em] text-[#EAB308] uppercase mb-2">
+              CO-OP EXTRACTION PROTOCOL
+            </div>
+            <ul class="font-mono-tech text-[11px] text-[#888884] space-y-1.5 leading-relaxed">
+              <li>01. TWO KEYS SPAWN IN FAR SECTORS: ALPHA (AMBER) &amp; BETA (WHITE).</li>
+              <li>02. INVENTORY LIMIT: STRICTLY 1 KEY PER OPERATIVE.</li>
+              <li>03. BOTH KEYS MUST BE INSERTED INTO THE PERIMETER BLAST DOOR.</li>
+              <li>04. BOTH OPERATIVES MUST STAND IN THE ESCAPE ZONE BEFORE 00:00.</li>
+            </ul>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Status Log Bar -->
+      <div class="mt-6 border border-[#292929] bg-[#0B0B0B] px-5 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <div class="font-mono-tech text-[11px] tracking-[0.14em] text-[#F4F4F0]" id="lobby-log">
+          SYSTEM READY. SELECT CREATE SESSION OR JOIN SESSION.
+        </div>
+        <div class="font-mono-tech text-[10px] tracking-[0.14em] text-[#888884]">
+          TICK RATE: 25HZ (40MS) // PRNG: MULBERRY32
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom Footer -->
+    <div class="border-t border-[#292929] pt-4 flex flex-col sm:flex-row items-center justify-between text-[11px] font-mono-tech tracking-[0.14em] text-[#888884] gap-2">
+      <div>CONTROLS: [WASD] MOVE // [MOUSE] LOOK // [SHIFT] SPRINT // [E] INTERACT // [F] TORCH</div>
+      <div>RENDERER: THREE.INSTANCEDMESH // ZERO EXTERNAL ASSETS</div>
+    </div>
+  </div>
+
+  <!-- End-State Modal (ESCAPED / CONTAINMENT SEALED) -->
+  <div id="endgame-overlay" class="hidden fixed inset-0 z-40 bg-[#111111]/95 flex flex-col items-center justify-center p-6">
+    <div class="w-full max-w-lg border border-[#292929] bg-[#141414] p-8 md:p-10">
+      <div id="endgame-tag" class="font-mono-tech text-[11px] tracking-[0.25em] text-[#EAB308] uppercase mb-2">
+        EXPEDITION REPORT
+      </div>
+      <h2 id="endgame-title" class="font-mono-tech text-2xl md:text-3xl font-bold tracking-[0.16em] text-[#F4F4F0] uppercase mb-4">
+        ESCAPED
+      </h2>
+      <p id="endgame-desc" class="text-xs text-[#888884] leading-relaxed mb-6">
+        Both operatives successfully unlocked the perimeter blast door and cleared containment prior to lockdown.
+      </p>
+      <div class="border-t border-b border-[#292929] py-4 mb-6 grid grid-cols-2 gap-4 font-mono-tech text-xs">
+        <div>
+          <div class="text-[10px] text-[#888884] tracking-[0.18em]">TIME REMAINING</div>
+          <div id="endgame-time" class="text-base text-[#F4F4F0] mt-1">02:14</div>
+        </div>
+        <div>
+          <div class="text-[10px] text-[#888884] tracking-[0.18em]">MAZE SEED</div>
+          <div id="endgame-seed" class="text-base text-[#F4F4F0] mt-1">#849201</div>
+        </div>
+      </div>
+      <div class="flex flex-col sm:flex-row gap-3">
+        <button id="btn-rematch" class="btn-hazard flex-1">NEW EXPEDITION (NEW SEED)</button>
+        <button id="btn-return-lobby" class="btn-industrial flex-1">RETURN TO LOBBY</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Application Script -->
+  <script>
+    /*************************************************************************
+     * 0. THREE.JS r128 CAPSULE GEOMETRY POLYFILL
+     * Ensures `new THREE.CapsuleGeometry(radius, length, capSegs, radialSegs)`
+     * works natively in Three.js r128 for articulated Hazmat character meshes.
+     *************************************************************************/
+    if (!THREE.CapsuleGeometry) {
+      THREE.CapsuleGeometry = function (radius = 0.5, length = 1, capSegments = 8, radialSegments = 16) {
+        const path = new THREE.Path();
+        path.absarc(0, -length / 2, radius, Math.PI * 1.5, 0);
+        path.absarc(0, length / 2, radius, 0, Math.PI * 0.5);
+        const points = path.getPoints(capSegments * 2);
+        const latheGeo = new THREE.LatheGeometry(points, radialSegments);
+        latheGeo.computeVertexNormals();
+        return latheGeo;
+      };
+    }
+
+    /*************************************************************************
+     * 1. DETERMINISTIC SEEDED PRNG (MULBERRY32)
+     *************************************************************************/
+    function createMulberry32(seed) {
+      let a = seed >>> 0;
+      return function () {
+        let t = (a += 0x6D2B79F5);
+        t = Math.imul(t ^ (t >>> 15), t | 1);
+        t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+      };
+    }
+
+    /*************************************************************************
+     * 2. PROCEDURAL WEB AUDIO SYNTHESIZER (ZERO EXTERNAL ASSETS)
+     * Synthesizes footsteps, key pickup click, heavy blast door rumble,
+     * lock engagement clunk, flashlight switch, and countdown timer beeps.
+     *************************************************************************/
+    class SoundEngine {
+      constructor() {
+        this.ctx = null;
+        this.masterGain = null;
+      }
+
+      init() {
+        if (!this.ctx) {
+          const AudioCtx = window.AudioContext || window.webkitAudioContext;
+          if (AudioCtx) {
+            this.ctx = new AudioCtx();
+            this.masterGain = this.ctx.createGain();
+            this.masterGain.gain.value = 0.45;
+            this.masterGain.connect(this.ctx.destination);
+          }
+        }
+        if (this.ctx && this.ctx.state === 'suspended') {
+          this.ctx.resume();
+        }
+      }
+
+      // Industrial boot footstep on metal/concrete grating
+      playFootstep(volume = 0.35, pitchMod = 1.0) {
+        this.init();
+        if (!this.ctx) return;
+
+        const now = this.ctx.currentTime;
+        // Low thump oscillator
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(95 * pitchMod, now);
+        osc.frequency.exponentialRampToValueAtTime(28, now + 0.085);
+
+        gain.gain.setValueAtTime(volume, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.09);
+
+        osc.connect(gain);
+        gain.connect(this.masterGain);
+        osc.start(now);
+        osc.stop(now + 0.095);
+
+        // Gritty sole scrape noise burst
+        const bufferSize = this.ctx.sampleRate * 0.055;
+        const noiseBuffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+        const data = noiseBuffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+          data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.4));
+        }
+
+        const noise = this.ctx.createBufferSource();
+        noise.buffer = noiseBuffer;
+
+        const filter = this.ctx.createBiquadFilter();
+        filter.type = 'bandpass';
+        filter.frequency.value = 900 * pitchMod;
+        filter.Q.value = 1.8;
+
+        const noiseGain = this.ctx.createGain();
+        noiseGain.gain.setValueAtTime(volume * 0.45, now);
+        noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.055);
+
+        noise.connect(filter);
+        filter.connect(noiseGain);
+        noiseGain.connect(this.masterGain);
+        noise.start(now);
+      }
+
+      // Flashlight tactical switch click
+      playTorchClick() {
+        this.init();
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(1600, now);
+        osc.frequency.exponentialRampToValueAtTime(420, now + 0.025);
+        gain.gain.setValueAtTime(0.25, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.028);
+        osc.connect(gain);
+        gain.connect(this.masterGain);
+        osc.start(now);
+        osc.stop(now + 0.03);
+      }
+
+      // Key pickup mechanical latch + high confirmation tone
+      playKeyPickup() {
+        this.init();
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+
+        const freqs = [587.33, 880, 1174.66];
+        freqs.forEach((f, idx) => {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(f, now + idx * 0.055);
+          gain.gain.setValueAtTime(0.28, now + idx * 0.055);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.055 + 0.18);
+          osc.connect(gain);
+          gain.connect(this.masterGain);
+          osc.start(now + idx * 0.055);
+          osc.stop(now + idx * 0.055 + 0.19);
+        });
+      }
+
+      // Heavy key insertion and pneumatic blast door rumble
+      playLockInsert(isDoorOpening = false) {
+        this.init();
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+
+        // Heavy metallic clunk
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(140, now);
+        osc.frequency.exponentialRampToValueAtTime(42, now + 0.22);
+        gain.gain.setValueAtTime(0.5, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.24);
+        osc.connect(gain);
+        gain.connect(this.masterGain);
+        osc.start(now);
+        osc.stop(now + 0.25);
+
+        if (isDoorOpening) {
+          // Deep 2.2-second hydraulic blast door rumble
+          const rumbleOsc = this.ctx.createOscillator();
+          const rumbleGain = this.ctx.createGain();
+          rumbleOsc.type = 'sawtooth';
+          rumbleOsc.frequency.setValueAtTime(52, now + 0.25);
+          rumbleOsc.frequency.linearRampToValueAtTime(38, now + 2.4);
+
+          const filter = this.ctx.createBiquadFilter();
+          filter.type = 'lowpass';
+          filter.frequency.value = 140;
+
+          rumbleGain.gain.setValueAtTime(0.01, now + 0.25);
+          rumbleGain.gain.linearRampToValueAtTime(0.55, now + 0.5);
+          rumbleGain.gain.setValueAtTime(0.55, now + 2.0);
+          rumbleGain.gain.exponentialRampToValueAtTime(0.001, now + 2.5);
+
+          rumbleOsc.connect(filter);
+          filter.connect(rumbleGain);
+          rumbleGain.connect(this.masterGain);
+          rumbleOsc.start(now + 0.25);
+          rumbleOsc.stop(now + 2.55);
+        }
+      }
+
+      // Timer warning beep or capacity error tone
+      playBeep(freq = 880, duration = 0.08, type = 'sine', vol = 0.2) {
+        this.init();
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, now);
+        gain.gain.setValueAtTime(vol, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+        osc.connect(gain);
+        gain.connect(this.masterGain);
+        osc.start(now);
+        osc.stop(now + duration + 0.01);
+      }
+    }
+
+    const sound = new SoundEngine();
+
+    /*************************************************************************
+     * 3. MAZE CONFIGURATION & DETERMINISTIC GENERATOR
+     * Uses Recursive Backtracker with Mulberry32 PRNG.
+     * Grid dimensions: 15x15 logical cells -> 31x31 physical grid tiles.
+     * Center cell (7,7) maps to physical tile (15,15) which is world (0,0).
+     *************************************************************************/
+    const MAZE_CELLS = 11; // 11x11 logical cells => 23x23 physical tiles (ideal 5-min tactical scale)
+    const GRID_SIZE = MAZE_CELLS * 2 + 1; // 23x23
+    const CENTER_TILE = Math.floor(GRID_SIZE / 2); // 11 (maps to world X=0, Z=0)
+    const TILE_SIZE = 4.0; // 4 meters wide industrial hallways
+    const WALL_HEIGHT = 4.2;
+
+    class DeterministicMaze {
+      constructor(seed) {
+        this.seed = seed;
+        this.rng = createMulberry32(seed);
+        this.grid = []; // 1 = solid wall, 0 = open corridor
+        this.keyAlphaPos = new THREE.Vector3();
+        this.keyBetaPos = new THREE.Vector3();
+        this.doorGridPos = { gx: CENTER_TILE, gz: 0 };
+        this.doorWorldPos = new THREE.Vector3();
+        this.escapeZoneCenter = new THREE.Vector3();
+        this.generate();
+      }
+
+      tileToWorld(gx, gz) {
+        return new THREE.Vector3(
+          (gx - CENTER_TILE) * TILE_SIZE,
+          0,
+          (gz - CENTER_TILE) * TILE_SIZE
+        );
+      }
+
+      worldToTile(wx, wz) {
+        return {
+          gx: Math.round(wx / TILE_SIZE) + CENTER_TILE,
+          gz: Math.round(wz / TILE_SIZE) + CENTER_TILE
+        };
+      }
+
+      generate() {
+        // Initialize all tiles as walls (1)
+        for (let z = 0; z < GRID_SIZE; z++) {
+          this.grid[z] = new Array(GRID_SIZE).fill(1);
+        }
+
+        const visited = [];
+        for (let cz = 0; cz < MAZE_CELLS; cz++) {
+          visited[cz] = new Array(MAZE_CELLS).fill(false);
+        }
+
+        // Start carving from center logical cell (5, 5) -> physical (11, 11) -> world (0, 0)
+        const startCX = Math.floor(MAZE_CELLS / 2);
+        const startCZ = Math.floor(MAZE_CELLS / 2);
+
+        const stack = [{ cx: startCX, cz: startCZ }];
+        visited[startCZ][startCX] = true;
+        this.grid[startCZ * 2 + 1][startCX * 2 + 1] = 0;
+
+        const dirs = [
+          { dx: 0, dz: -1 },
+          { dx: 1, dz: 0 },
+          { dx: 0, dz: 1 },
+          { dx: -1, dz: 0 }
+        ];
+
+        while (stack.length > 0) {
+          const current = stack[stack.length - 1];
+          const unvisitedNeighbors = [];
+
+          for (let i = 0; i < dirs.length; i++) {
+            const nx = current.cx + dirs[i].dx;
+            const nz = current.cz + dirs[i].dz;
+            if (nx >= 0 && nx < MAZE_CELLS && nz >= 0 && nz < MAZE_CELLS && !visited[nz][nx]) {
+              unvisitedNeighbors.push({ nx, nz, dx: dirs[i].dx, dz: dirs[i].dz });
+            }
+          }
+
+          if (unvisitedNeighbors.length > 0) {
+            const pickIdx = Math.floor(this.rng() * unvisitedNeighbors.length);
+            const chosen = unvisitedNeighbors[pickIdx];
+
+            // Knock down wall between current and chosen
+            const wallGX = current.cx * 2 + 1 + chosen.dx;
+            const wallGZ = current.cz * 2 + 1 + chosen.dz;
+            const nextGX = chosen.nx * 2 + 1;
+            const nextGZ = chosen.nz * 2 + 1;
+
+            this.grid[wallGZ][wallGX] = 0;
+            this.grid[nextGZ][nextGX] = 0;
+
+            visited[chosen.nz][chosen.nx] = true;
+            stack.push({ cx: chosen.nx, cz: chosen.nz });
+          } else {
+            stack.pop();
+          }
+        }
+
+        // Carve a 3x3 central spawn room around (CENTER_TILE, CENTER_TILE) so both players have breathing room at (0,0)
+        for (let dz = -1; dz <= 1; dz++) {
+          for (let dx = -1; dx <= 1; dx++) {
+            this.grid[CENTER_TILE + dz][CENTER_TILE + dx] = 0;
+          }
+        }
+
+        // Add subtle braiding (knock down ~10% of internal walls) so players can maneuver tactically
+        for (let gz = 2; gz < GRID_SIZE - 2; gz++) {
+          for (let gx = 2; gx < GRID_SIZE - 2; gx++) {
+            if (this.grid[gz][gx] === 1) {
+              const horizOpen = this.grid[gz][gx - 1] === 0 && this.grid[gz][gx + 1] === 0 && this.grid[gz - 1][gx] === 1 && this.grid[gz + 1][gx] === 1;
+              const vertOpen = this.grid[gz - 1][gx] === 0 && this.grid[gz + 1][gx] === 0 && this.grid[gz][gx - 1] === 1 && this.grid[gz][gx + 1] === 1;
+              if ((horizOpen || vertOpen) && this.rng() < 0.12) {
+                this.grid[gz][gx] = 0;
+              }
+            }
+          }
+        }
+
+        // Collect all dead-ends or far corridor cells for Key Alpha and Key Beta placement
+        const candidates = [];
+        for (let cz = 0; cz < MAZE_CELLS; cz++) {
+          for (let cx = 0; cx < MAZE_CELLS; cx++) {
+            const gx = cx * 2 + 1;
+            const gz = cz * 2 + 1;
+            const distFromCenter = Math.hypot(gx - CENTER_TILE, gz - CENTER_TILE);
+            if (distFromCenter < 6) continue; // Keep keys far from spawn
+
+            let openNeighbors = 0;
+            if (this.grid[gz - 1][gx] === 0) openNeighbors++;
+            if (this.grid[gz + 1][gx] === 0) openNeighbors++;
+            if (this.grid[gz][gx - 1] === 0) openNeighbors++;
+            if (this.grid[gz][gx + 1] === 0) openNeighbors++;
+
+            candidates.push({
+              gx,
+              gz,
+              isDeadEnd: openNeighbors === 1,
+              dist: distFromCenter,
+              quadrant: (gx < CENTER_TILE ? 0 : 1) + (gz < CENTER_TILE ? 0 : 2)
+            });
+          }
+        }
+
+        // Sort candidates prioritizing dead-ends and long distance from spawn
+        candidates.sort((a, b) => {
+          if (a.isDeadEnd !== b.isDeadEnd) return a.isDeadEnd ? -1 : 1;
+          return b.dist - a.dist;
+        });
+
+        // Pick Key Alpha in one far sector
+        const alphaCell = candidates[0] || { gx: 1, gz: 1 };
+        // Pick Key Beta in an opposite or distant sector (maximize distance from Key Alpha)
+        let betaCell = candidates[1] || { gx: GRID_SIZE - 2, gz: GRID_SIZE - 2 };
+        let bestMutualDist = -1;
+        for (let i = 1; i < Math.min(candidates.length, 16); i++) {
+          const c = candidates[i];
+          const d = Math.hypot(c.gx - alphaCell.gx, c.gz - alphaCell.gz);
+          if (d > bestMutualDist) {
+            bestMutualDist = d;
+            betaCell = c;
+          }
+        }
+
+        this.keyAlphaPos.copy(this.tileToWorld(alphaCell.gx, alphaCell.gz));
+        this.keyBetaPos.copy(this.tileToWorld(betaCell.gx, betaCell.gz));
+
+        // Locate Heavy Escape Blast Door on North Outer Perimeter (gz = 0)
+        // Find an open cell at gz = 1 near the top perimeter that isn't holding a key
+        let doorGX = CENTER_TILE;
+        for (let offset = 0; offset < CENTER_TILE; offset++) {
+          const testGX = CENTER_TILE + (offset % 2 === 0 ? offset : -offset);
+          if (
+            testGX >= 1 &&
+            testGX < GRID_SIZE - 1 &&
+            this.grid[1][testGX] === 0 &&
+            !(alphaCell.gx === testGX && alphaCell.gz === 1) &&
+            !(betaCell.gx === testGX && betaCell.gz === 1)
+          ) {
+            doorGX = testGX;
+            break;
+          }
+        }
+
+        this.doorGridPos = { gx: doorGX, gz: 0 };
+        this.doorWorldPos.copy(this.tileToWorld(doorGX, 0));
+        this.escapeZoneCenter.copy(this.tileToWorld(doorGX, 1));
+      }
+
+      isWall(gx, gz) {
+        if (gx < 0 || gx >= GRID_SIZE || gz < 0 || gz >= GRID_SIZE) return true;
+        return this.grid[gz][gx] === 1;
+      }
+    }
+
+    /*************************************************************************
+     * 4. PROCEDURAL INDUSTRIAL TEXTURE GENERATOR
+     * Generates concrete wall, steel floor grating, and hazard stripe textures
+     * in memory for crisp SpotLight illumination without external image files.
+     *************************************************************************/
+    function createConcreteWallTexture() {
+      const canvas = document.createElement('canvas');
+      canvas.width = 256;
+      canvas.height = 256;
+      const ctx = canvas.getContext('2d');
+
+      ctx.fillStyle = '#2B2B29';
+      ctx.fillRect(0, 0, 256, 256);
+
+      // Subtle concrete speckle noise
+      for (let i = 0; i < 4500; i++) {
+        const x = Math.random() * 256;
+        const y = Math.random() * 256;
+        const v = 30 + Math.floor(Math.random() * 28);
+        ctx.fillStyle = `rgb(${v},${v},${v - 2})`;
+        ctx.fillRect(x, y, 2, 2);
+      }
+
+      // Formwork panel seams
+      ctx.strokeStyle = '#181816';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(2, 2, 252, 252);
+      ctx.beginPath();
+      ctx.moveTo(0, 128);
+      ctx.lineTo(256, 128);
+      ctx.stroke();
+
+      // Subtle industrial baseboard band
+      ctx.fillStyle = '#191918';
+      ctx.fillRect(0, 224, 256, 32);
+      ctx.fillStyle = '#524518';
+      ctx.fillRect(0, 220, 256, 4);
+
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.wrapS = THREE.RepeatWrapping;
+      tex.wrapT = THREE.RepeatWrapping;
+      return tex;
+    }
+
+    function createFloorTexture() {
+      const canvas = document.createElement('canvas');
+      canvas.width = 256;
+      canvas.height = 256;
+      const ctx = canvas.getContext('2d');
+
+      ctx.fillStyle = '#1B1B1A';
+      ctx.fillRect(0, 0, 256, 256);
+
+      ctx.strokeStyle = '#282826';
+      ctx.lineWidth = 3;
+      ctx.strokeRect(4, 4, 248, 248);
+
+      // Grating ribs
+      ctx.strokeStyle = '#232321';
+      ctx.lineWidth = 1;
+      for (let i = 16; i < 256; i += 16) {
+        ctx.beginPath();
+        ctx.moveTo(i, 0);
+        ctx.lineTo(i, 256);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(0, i);
+        ctx.lineTo(256, i);
+        ctx.stroke();
+      }
+
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.wrapS = THREE.RepeatWrapping;
+      tex.wrapT = THREE.RepeatWrapping;
+      return tex;
+    }
+
+    /*************************************************************************
+     * 5. PROCEDURAL ARTICULATED HAZMAT OPERATIVE MODEL
+     * Uses CapsuleGeometry, BoxGeometry, CylinderGeometry.
+     * Bright Matte Yellow Hazmat Suit (#EAB308), dark grey visor faceplate,
+     * twin oxygen tanks on back, holding a flashlight/torch in right hand
+     * with real SpotLight + volumetric beam cone.
+     *************************************************************************/
+    function createHazmatCharacterMesh() {
+      const root = new THREE.Group();
+
+      const yellowSuitMat = new THREE.MeshStandardMaterial({
+        color: 0xEAB308,
+        roughness: 0.72,
+        metalness: 0.08
+      });
+      const darkTrimMat = new THREE.MeshStandardMaterial({
+        color: 0x1F2421,
+        roughness: 0.6,
+        metalness: 0.3
+      });
+      const visorMat = new THREE.MeshStandardMaterial({
+        color: 0x1E293B,
+        roughness: 0.15,
+        metalness: 0.85
+      });
+      const tankMat = new THREE.MeshStandardMaterial({
+        color: 0x94A3B8,
+        roughness: 0.4,
+        metalness: 0.65
+      });
+
+      // Torso group (bobs slightly during walk cycle)
+      const bodyGroup = new THREE.Group();
+      bodyGroup.position.y = 0.95;
+      root.add(bodyGroup);
+
+      // Main Hazmat Torso (CapsuleGeometry)
+      const torsoGeo = new THREE.CapsuleGeometry(0.26, 0.48, 8, 16);
+      const torsoMesh = new THREE.Mesh(torsoGeo, yellowSuitMat);
+      torsoMesh.castShadow = true;
+      torsoMesh.receiveShadow = true;
+      bodyGroup.add(torsoMesh);
+
+      // Industrial Harness Belt (BoxGeometry)
+      const beltGeo = new THREE.BoxGeometry(0.54, 0.1, 0.46);
+      const beltMesh = new THREE.Mesh(beltGeo, darkTrimMat);
+      beltMesh.position.y = -0.22;
+      bodyGroup.add(beltMesh);
+
+      // Head & Hood Assembly
+      const headPivot = new THREE.Group();
+      headPivot.position.set(0, 0.52, 0);
+      bodyGroup.add(headPivot);
+
+      const hoodGeo = new THREE.CapsuleGeometry(0.19, 0.12, 8, 16);
+      const hoodMesh = new THREE.Mesh(hoodGeo, yellowSuitMat);
+      hoodMesh.castShadow = true;
+      headPivot.add(hoodMesh);
+
+      // Dark Grey Visor Faceplate (Faces -Z forward)
+      const visorGeo = new THREE.BoxGeometry(0.28, 0.18, 0.14);
+      const visorMesh = new THREE.Mesh(visorGeo, visorMat);
+      visorMesh.position.set(0, 0.02, -0.14);
+      headPivot.add(visorMesh);
+
+      // Twin Oxygen Tanks on Back (+Z side)
+      const backpackGroup = new THREE.Group();
+      backpackGroup.position.set(0, 0.08, 0.27);
+      bodyGroup.add(backpackGroup);
+
+      const tankGeo = new THREE.CylinderGeometry(0.085, 0.085, 0.52, 12);
+      const leftTank = new THREE.Mesh(tankGeo, tankMat);
+      leftTank.position.x = -0.1;
+      leftTank.castShadow = true;
+      backpackGroup.add(leftTank);
+
+      const rightTank = new THREE.Mesh(tankGeo, tankMat);
+      rightTank.position.x = 0.1;
+      rightTank.castShadow = true;
+      backpackGroup.add(rightTank);
+
+      const manifoldGeo = new THREE.BoxGeometry(0.28, 0.08, 0.12);
+      const manifold = new THREE.Mesh(manifoldGeo, darkTrimMat);
+      manifold.position.y = 0.27;
+      backpackGroup.add(manifold);
+
+      // Subtle status beacon on oxygen pack so partner can spot silhouette from behind
+      const beaconGeo = new THREE.BoxGeometry(0.08, 0.04, 0.04);
+      const beaconMat = new THREE.MeshBasicMaterial({ color: 0xEAB308 });
+      const beacon = new THREE.Mesh(beaconGeo, beaconMat);
+      beacon.position.set(0, 0.27, 0.06);
+      backpackGroup.add(beacon);
+
+      // Articulated Left Arm
+      const leftArmPivot = new THREE.Group();
+      leftArmPivot.position.set(-0.34, 0.2, 0);
+      bodyGroup.add(leftArmPivot);
+
+      const armGeo = new THREE.CapsuleGeometry(0.085, 0.38, 6, 12);
+      const leftArmMesh = new THREE.Mesh(armGeo, yellowSuitMat);
+      leftArmMesh.position.y = -0.2;
+      leftArmMesh.castShadow = true;
+      leftArmPivot.add(leftArmMesh);
+
+      // Articulated Right Arm (Holds Flashlight/Torch)
+      const rightArmPivot = new THREE.Group();
+      rightArmPivot.position.set(0.34, 0.2, 0);
+      bodyGroup.add(rightArmPivot);
+
+      const rightArmMesh = new THREE.Mesh(armGeo, yellowSuitMat);
+      rightArmMesh.position.set(0, -0.14, -0.12);
+      rightArmMesh.rotation.x = Math.PI * 0.38; // Raised forward holding torch
+      rightArmMesh.castShadow = true;
+      rightArmPivot.add(rightArmMesh);
+
+      // Heavy Industrial Flashlight / Torch in Right Hand
+      const torchGroup = new THREE.Group();
+      torchGroup.position.set(0, -0.26, -0.34);
+      rightArmPivot.add(torchGroup);
+
+      const torchBodyGeo = new THREE.CylinderGeometry(0.045, 0.038, 0.28, 12);
+      torchBodyGeo.rotateX(Math.PI / 2);
+      const torchBody = new THREE.Mesh(torchBodyGeo, darkTrimMat);
+      torchGroup.add(torchBody);
+
+      const lensGeo = new THREE.CylinderGeometry(0.048, 0.048, 0.02, 12);
+      lensGeo.rotateX(Math.PI / 2);
+      const lensMat = new THREE.MeshBasicMaterial({ color: 0xFFFBEB });
+      const lensMesh = new THREE.Mesh(lensGeo, lensMat);
+      lensMesh.position.z = -0.145;
+      torchGroup.add(lensMesh);
+
+      // Volumetric Flashlight Cone Mesh so Partner sees beam slicing through the dark
+      const coneLength = 9.5;
+      const coneRadius = 2.6;
+      const coneGeo = new THREE.ConeGeometry(coneRadius, coneLength, 24, 1, true);
+      // Orient cone so tip is at origin (0,0,0) and beam extends toward -Z
+      coneGeo.translate(0, -coneLength / 2, 0);
+      coneGeo.rotateX(Math.PI / 2);
+
+      const coneMat = new THREE.MeshBasicMaterial({
+        color: 0xFEF9C3,
+        transparent: true,
+        opacity: 0.09,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending
+      });
+      const beamCone = new THREE.Mesh(coneGeo, coneMat);
+      beamCone.position.set(0, 0, -0.15);
+      torchGroup.add(beamCone);
+
+      // Real Three.js SpotLight attached to Remote Player's Torch
+      const remoteSpotLight = new THREE.SpotLight(0xFFFBEB, 2.8, 28, Math.PI / 4.2, 0.55, 1.4);
+      remoteSpotLight.position.set(0, 0, -0.15);
+      remoteSpotLight.castShadow = true;
+      remoteSpotLight.shadow.mapSize.width = 512;
+      remoteSpotLight.shadow.mapSize.height = 512;
+      remoteSpotLight.shadow.camera.near = 0.3;
+      remoteSpotLight.shadow.camera.far = 26;
+      torchGroup.add(remoteSpotLight);
+
+      const spotTarget = new THREE.Object3D();
+      spotTarget.position.set(0, 0, -10);
+      torchGroup.add(spotTarget);
+      remoteSpotLight.target = spotTarget;
+
+      // Subtle local bounce light around remote player's hazmat suit
+      const suitGlow = new THREE.PointLight(0xFFFBEB, 0.35, 3.2);
+      suitGlow.position.set(0, 0.2, -0.35);
+      bodyGroup.add(suitGlow);
+
+      // Articulated Left & Right Legs
+      const leftLegPivot = new THREE.Group();
+      leftLegPivot.position.set(-0.14, 0.65, 0);
+      root.add(leftLegPivot);
+
+      const legGeo = new THREE.CapsuleGeometry(0.095, 0.42, 6, 12);
+      const leftLegMesh = new THREE.Mesh(legGeo, yellowSuitMat);
+      leftLegMesh.position.y = -0.26;
+      leftLegMesh.castShadow = true;
+      leftLegPivot.add(leftLegMesh);
+
+      const bootGeo = new THREE.BoxGeometry(0.18, 0.12, 0.26);
+      const leftBoot = new THREE.Mesh(bootGeo, darkTrimMat);
+      leftBoot.position.set(0, -0.54, -0.03);
+      leftLegPivot.add(leftBoot);
+
+      const rightLegPivot = new THREE.Group();
+      rightLegPivot.position.set(0.14, 0.65, 0);
+      root.add(rightLegPivot);
+
+      const rightLegMesh = new THREE.Mesh(legGeo, yellowSuitMat);
+      rightLegMesh.position.y = -0.26;
+      rightLegMesh.castShadow = true;
+      rightLegPivot.add(rightLegMesh);
+
+      const rightBoot = new THREE.Mesh(bootGeo, darkTrimMat);
+      rightBoot.position.set(0, -0.54, -0.03);
+      rightLegPivot.add(rightBoot);
+
+      root.userData = {
+        bodyGroup,
+        headPivot,
+        leftArmPivot,
+        rightArmPivot,
+        leftLegPivot,
+        rightLegPivot,
+        torchGroup,
+        remoteSpotLight,
+        beamCone,
+        lensMat,
+        suitGlow,
+        walkPhase: 0
+      };
+
+      return root;
+    }
+
+    /*************************************************************************
+     * 6. GLOBAL GAME & NETWORK STATE
+     *************************************************************************/
+    const state = {
+      role: 'NONE', // 'HOST', 'CLIENT', or 'SOLO'
+      roomCode: '',
+      seed: 0,
+      connected: false,
+      matchActive: false,
+      matchEnded: false,
+      timeRemaining: 300.0, // 5-minute countdown (300 seconds)
+
+      // Inventory & Objective State
+      myKey: null, // null | 'ALPHA' | 'BETA'
+      keyAlphaCollected: false,
+      keyBetaCollected: false,
+      lockAlphaInserted: false,
+      lockBetaInserted: false,
+      doorOpenProgress: 0, // 0.0 to 1.0
+
+      // Local Player Physics & Controls
+      playerPos: new THREE.Vector3(0, 1.65, 0),
+      playerYaw: 0,
+      playerPitch: 0,
+      moveForward: false,
+      moveBackward: false,
+      moveLeft: false,
+      moveRight: false,
+      isSprinting: false,
+      torchOn: true,
+      footstepAccum: 0,
+
+      // Remote Player Interpolation Targets (60+ FPS Lerp & Slerp)
+      remoteTargetPos: new THREE.Vector3(1.2, 0, 0),
+      remoteCurrentPos: new THREE.Vector3(1.2, 0, 0),
+      remoteTargetQuat: new THREE.Quaternion(),
+      remoteCurrentQuat: new THREE.Quaternion(),
+      remoteTargetPitch: 0,
+      remoteCurrentPitch: 0,
+      remoteMoving: false,
+      remoteTorchOn: true,
+      remoteStepAccum: 0,
+
+      // Solo Practice Brother Bot State
+      botActive: false,
+      botKey: null,
+      botPath: [],
+      botPathTimer: 0,
+
+      // Network Telemetry
+      pingMs: 0,
+      lastPingSentAt: 0
+    };
+
+    /*************************************************************************
+     * 7. THREE.JS SCENE, CAMERA, LIGHTING & INSTANCED MAZE SETUP
+     *************************************************************************/
+    const container = document.getElementById('canvas-container');
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x050505);
+    // Pitch-black exponential fog for oppressive subterranean scale
+    scene.fog = new THREE.FogExp2(0x050505, 0.095);
+
+    const camera = new THREE.PerspectiveCamera(72, window.innerWidth / window.innerHeight, 0.1, 60);
+    camera.rotation.order = 'YXZ';
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.05;
+    container.appendChild(renderer.domElement);
+
+    // Pitch-black AmbientLight (0.05 intensity as specified)
+    const ambientLight = new THREE.AmbientLight(0xF4F4F0, 0.05);
+    scene.add(ambientLight);
+
+    // Local Player Torch (SpotLight attached to First-Person Camera + Handheld Viewmodel)
+    const playerTorchGroup = new THREE.Group();
+    camera.add(playerTorchGroup);
+    scene.add(camera);
+
+    const localSpotLight = new THREE.SpotLight(0xFFFBEB, 3.3, 32, Math.PI / 3.9, 0.58, 1.35);
+    localSpotLight.position.set(0.24, -0.22, -0.15);
+    localSpotLight.castShadow = true;
+    localSpotLight.shadow.mapSize.width = 1024;
+    localSpotLight.shadow.mapSize.height = 1024;
+    localSpotLight.shadow.camera.near = 0.25;
+    localSpotLight.shadow.camera.far = 30;
+    localSpotLight.shadow.bias = -0.0005;
+    playerTorchGroup.add(localSpotLight);
+
+    const localSpotTarget = new THREE.Object3D();
+    localSpotTarget.position.set(0, -0.08, -10);
+    playerTorchGroup.add(localSpotTarget);
+    localSpotLight.target = localSpotTarget;
+
+    // Subtle close-proximity bounce light so walls right next to player are legible
+    const localBounceLight = new THREE.PointLight(0xFFFBEB, 0.35, 3.8);
+    localBounceLight.position.set(0, 0, -0.2);
+    playerTorchGroup.add(localBounceLight);
+
+    // First-person handheld torch mesh in bottom-right of view
+    const fpTorchBody = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.035, 0.03, 0.26, 12).rotateX(Math.PI / 2),
+      new THREE.MeshStandardMaterial({ color: 0x1E242B, roughness: 0.4, metalness: 0.6 })
+    );
+    fpTorchBody.position.set(0.26, -0.25, -0.35);
+    playerTorchGroup.add(fpTorchBody);
+
+    // Create Remote Player Hazmat Character
+    const remotePlayerMesh = createHazmatCharacterMesh();
+    scene.add(remotePlayerMesh);
+
+    // Group holding all dynamic maze objects (InstancedMesh walls, floors, keys, door)
+    const mazeWorldGroup = new THREE.Group();
+    scene.add(mazeWorldGroup);
+
+    const wallTexture = createConcreteWallTexture();
+    const floorTexture = createFloorTexture();
+
+    let currentMaze = null;
+    let keyAlphaMeshGroup = null;
+    let keyBetaMeshGroup = null;
+    let blastDoorObj = null;
+
+    function buildMazeScene(seed) {
+      // Clear previous maze meshes
+      while (mazeWorldGroup.children.length > 0) {
+        const child = mazeWorldGroup.children[0];
+        mazeWorldGroup.remove(child);
+      }
+
+      currentMaze = new DeterministicMaze(seed);
+
+      // Count walls and floor tiles for THREE.InstancedMesh
+      const wallMatrices = [];
+      const pillarMatrices = [];
+      const floorMatrices = [];
+      const dummy = new THREE.Object3D();
+
+      for (let gz = 0; gz < GRID_SIZE; gz++) {
+        for (let gx = 0; gx < GRID_SIZE; gx++) {
+          const worldPos = currentMaze.tileToWorld(gx, gz);
+
+          // Skip wall at Escape Door tile (door frame replaces it)
+          const isDoorTile = gx === currentMaze.doorGridPos.gx && gz === currentMaze.doorGridPos.gz;
+
+          if (currentMaze.grid[gz][gx] === 1 && !isDoorTile) {
+            dummy.position.set(worldPos.x, WALL_HEIGHT / 2, worldPos.z);
+            dummy.rotation.set(0, 0, 0);
+            dummy.scale.set(1, 1, 1);
+            dummy.updateMatrix();
+            wallMatrices.push(dummy.matrix.clone());
+
+            // Add vertical steel corner trim pillar
+            dummy.position.set(worldPos.x, WALL_HEIGHT / 2, worldPos.z);
+            dummy.scale.set(1.02, 1, 1.02);
+            dummy.updateMatrix();
+            pillarMatrices.push(dummy.matrix.clone());
+          } else {
+            // Open Floor Tile
+            dummy.position.set(worldPos.x, 0, worldPos.z);
+            dummy.rotation.set(0, 0, 0);
+            dummy.scale.set(1, 1, 1);
+            dummy.updateMatrix();
+            floorMatrices.push(dummy.matrix.clone());
+          }
+        }
+      }
+
+      // 1. Instanced Maze Walls (1 draw call)
+      const wallGeo = new THREE.BoxGeometry(TILE_SIZE, WALL_HEIGHT, TILE_SIZE);
+      const wallMat = new THREE.MeshStandardMaterial({
+        map: wallTexture,
+        bumpMap: wallTexture,
+        bumpScale: 0.03,
+        roughness: 0.85,
+        metalness: 0.1
+      });
+      const wallInstanced = new THREE.InstancedMesh(wallGeo, wallMat, wallMatrices.length);
+      wallInstanced.castShadow = true;
+      wallInstanced.receiveShadow = true;
+      wallMatrices.forEach((mat, i) => wallInstanced.setMatrixAt(i, mat));
+      wallInstanced.instanceMatrix.needsUpdate = true;
+      mazeWorldGroup.add(wallInstanced);
+
+      // 2. Instanced Floor & Ceiling Slabs (2 draw calls)
+      const floorGeo = new THREE.BoxGeometry(TILE_SIZE, 0.2, TILE_SIZE);
+      const floorMat = new THREE.MeshStandardMaterial({
+        map: floorTexture,
+        bumpMap: floorTexture,
+        bumpScale: 0.02,
+        roughness: 0.8,
+        metalness: 0.25
+      });
+      const floorInstanced = new THREE.InstancedMesh(floorGeo, floorMat, floorMatrices.length);
+      floorInstanced.receiveShadow = true;
+
+      const ceilingInstanced = new THREE.InstancedMesh(floorGeo, wallMat, floorMatrices.length);
+      floorMatrices.forEach((mat, i) => {
+        const floorM = mat.clone();
+        floorM.setPosition(new THREE.Vector3().setFromMatrixPosition(mat).add(new THREE.Vector3(0, -0.1, 0)));
+        floorInstanced.setMatrixAt(i, floorM);
+
+        const ceilM = mat.clone();
+        ceilM.setPosition(new THREE.Vector3().setFromMatrixPosition(mat).add(new THREE.Vector3(0, WALL_HEIGHT + 0.1, 0)));
+        ceilingInstanced.setMatrixAt(i, ceilM);
+      });
+      floorInstanced.instanceMatrix.needsUpdate = true;
+      ceilingInstanced.instanceMatrix.needsUpdate = true;
+      mazeWorldGroup.add(floorInstanced);
+      mazeWorldGroup.add(ceilingInstanced);
+
+      // 3. Build Key Alpha (Warm Amber Glow #EAB308) & Key Beta (Industrial White Glow #F4F4F0)
+      keyAlphaMeshGroup = createKeyPedestal(currentMaze.keyAlphaPos, 0xEAB308, 'ALPHA');
+      mazeWorldGroup.add(keyAlphaMeshGroup);
+
+      keyBetaMeshGroup = createKeyPedestal(currentMaze.keyBetaPos, 0xF4F4F0, 'BETA');
+      mazeWorldGroup.add(keyBetaMeshGroup);
+
+      // 4. Build Heavy Perimeter Blast Door & Escape Zone
+      blastDoorObj = createPerimeterBlastDoor(currentMaze.doorWorldPos, currentMaze.escapeZoneCenter);
+      mazeWorldGroup.add(blastDoorObj.group);
+    }
+
+    function createKeyPedestal(worldPos, glowHex, type) {
+      const group = new THREE.Group();
+      group.position.copy(worldPos);
+
+      // Heavy Industrial Pedestal Base
+      const baseMat = new THREE.MeshStandardMaterial({ color: 0x1F2421, roughness: 0.6, metalness: 0.5 });
+      const baseMesh = new THREE.Mesh(new THREE.BoxGeometry(0.65, 1.0, 0.65), baseMat);
+      baseMesh.position.y = 0.5;
+      baseMesh.castShadow = true;
+      baseMesh.receiveShadow = true;
+      group.add(baseMesh);
+
+      // Floating / Rotating Containment Key Cylinder
+      const keyHolder = new THREE.Group();
+      keyHolder.position.y = 1.38;
+      group.add(keyHolder);
+
+      const coreMat = new THREE.MeshBasicMaterial({ color: glowHex });
+      const keyCore = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.38, 12), coreMat);
+      keyHolder.add(keyCore);
+
+      const cageMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.3, metalness: 0.8 });
+      const ringTop = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 0.06, 12), cageMat);
+      ringTop.position.y = 0.19;
+      keyHolder.add(ringTop);
+
+      const ringBot = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 0.06, 12), cageMat);
+      ringBot.position.y = -0.19;
+      keyHolder.add(ringBot);
+
+      // Key PointLight so players can spot its warm amber / stark white glow down dark corridors
+      const keyLight = new THREE.PointLight(glowHex, 1.8, 9.5, 1.5);
+      keyLight.position.y = 1.5;
+      group.add(keyLight);
+
+      group.userData = { keyHolder, keyLight, type };
+      return group;
+    }
+
+    function createPerimeterBlastDoor(doorWorldPos, escapeZonePos) {
+      const group = new THREE.Group();
+      group.position.copy(doorWorldPos);
+
+      const frameMat = new THREE.MeshStandardMaterial({ color: 0x1C1E21, roughness: 0.55, metalness: 0.65 });
+      const doorSlabMat = new THREE.MeshStandardMaterial({ color: 0x26292E, roughness: 0.5, metalness: 0.7 });
+      const hazardMat = new THREE.MeshStandardMaterial({ color: 0xEAB308, roughness: 0.6, metalness: 0.2 });
+
+      // Left & Right Heavy Door Frame Jambs
+      const leftJamb = new THREE.Mesh(new THREE.BoxGeometry(0.65, WALL_HEIGHT, TILE_SIZE), frameMat);
+      leftJamb.position.set(-TILE_SIZE / 2 + 0.325, WALL_HEIGHT / 2, 0);
+      group.add(leftJamb);
+
+      const rightJamb = new THREE.Mesh(new THREE.BoxGeometry(0.65, WALL_HEIGHT, TILE_SIZE), frameMat);
+      rightJamb.position.set(TILE_SIZE / 2 - 0.325, WALL_HEIGHT / 2, 0);
+      group.add(rightJamb);
+
+      // Top Header Beam
+      const topBeam = new THREE.Mesh(new THREE.BoxGeometry(TILE_SIZE, 0.7, TILE_SIZE), frameMat);
+      topBeam.position.set(0, WALL_HEIGHT - 0.35, 0);
+      group.add(topBeam);
+
+      // Sliding Left & Right Blast Door Halves
+      const leftDoorSlab = new THREE.Mesh(new THREE.BoxGeometry(1.4, WALL_HEIGHT - 0.7, 0.45), doorSlabMat);
+      leftDoorSlab.position.set(-0.7, (WALL_HEIGHT - 0.7) / 2, 0);
+      leftDoorSlab.castShadow = true;
+      leftDoorSlab.receiveShadow = true;
+      group.add(leftDoorSlab);
+
+      const rightDoorSlab = new THREE.Mesh(new THREE.BoxGeometry(1.4, WALL_HEIGHT - 0.7, 0.45), doorSlabMat);
+      rightDoorSlab.position.set(0.7, (WALL_HEIGHT - 0.7) / 2, 0);
+      rightDoorSlab.castShadow = true;
+      rightDoorSlab.receiveShadow = true;
+      group.add(rightDoorSlab);
+
+      // Center Yellow Hazard Crossbar on Blast Door
+      const crossbarL = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.18, 0.48), hazardMat);
+      crossbarL.position.set(0, 0, 0);
+      leftDoorSlab.add(crossbarL);
+
+      const crossbarR = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.18, 0.48), hazardMat);
+      crossbarR.position.set(0, 0, 0);
+      rightDoorSlab.add(crossbarR);
+
+      // Lock Slot Alpha (Left Jamb) & Lock Slot Beta (Right Jamb)
+      const lockAlphaMat = new THREE.MeshBasicMaterial({ color: 0xDC2626 }); // Muted Red until unlocked
+      const lockBetaMat = new THREE.MeshBasicMaterial({ color: 0xDC2626 });
+
+      const lockHousingGeo = new THREE.BoxGeometry(0.32, 0.5, 0.2);
+      const lockSlotGeo = new THREE.CylinderGeometry(0.08, 0.08, 0.24, 12);
+      lockSlotGeo.rotateX(Math.PI / 2);
+
+      const leftLockBox = new THREE.Mesh(lockHousingGeo, frameMat);
+      leftLockBox.position.set(-TILE_SIZE / 2 + 0.35, 1.45, TILE_SIZE / 2 + 0.05);
+      group.add(leftLockBox);
+
+      const lockAlphaIndicator = new THREE.Mesh(lockSlotGeo, lockAlphaMat);
+      lockAlphaIndicator.position.set(-TILE_SIZE / 2 + 0.35, 1.45, TILE_SIZE / 2 + 0.08);
+      group.add(lockAlphaIndicator);
+
+      const rightLockBox = new THREE.Mesh(lockHousingGeo, frameMat);
+      rightLockBox.position.set(TILE_SIZE / 2 - 0.35, 1.45, TILE_SIZE / 2 + 0.05);
+      group.add(rightLockBox);
+
+      const lockBetaIndicator = new THREE.Mesh(lockSlotGeo, lockBetaMat);
+      lockBetaIndicator.position.set(TILE_SIZE / 2 - 0.35, 1.45, TILE_SIZE / 2 + 0.08);
+      group.add(lockBetaIndicator);
+
+      // Stark Extraction Light Chamber Behind the Blast Door
+      const backChamber = new THREE.Mesh(
+        new THREE.BoxGeometry(TILE_SIZE, WALL_HEIGHT, 2.5),
+        new THREE.MeshBasicMaterial({ color: 0xF4F4F0 })
+      );
+      backChamber.position.set(0, WALL_HEIGHT / 2, -1.6);
+      group.add(backChamber);
+
+      const doorLight = new THREE.PointLight(0xEAB308, 0.9, 9.0);
+      doorLight.position.set(0, 2.8, 2.2);
+      group.add(doorLight);
+
+      // Floor Escape Zone Perimeter Frame in front of Door (at escapeZonePos)
+      const zoneGroup = new THREE.Group();
+      zoneGroup.position.set(0, 0.02, TILE_SIZE);
+      group.add(zoneGroup);
+
+      const zoneBorderMat = new THREE.MeshBasicMaterial({ color: 0xEAB308 });
+      const b1 = new THREE.Mesh(new THREE.BoxGeometry(2.8, 0.02, 0.08), zoneBorderMat);
+      b1.position.z = -1.35;
+      zoneGroup.add(b1);
+      const b2 = new THREE.Mesh(new THREE.BoxGeometry(2.8, 0.02, 0.08), zoneBorderMat);
+      b2.position.z = 1.35;
+      zoneGroup.add(b2);
+      const b3 = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.02, 2.7), zoneBorderMat);
+      b3.position.x = -1.36;
+      zoneGroup.add(b3);
+      const b4 = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.02, 2.7), zoneBorderMat);
+      b4.position.x = 1.36;
+      zoneGroup.add(b4);
+
+      return {
+        group,
+        leftDoorSlab,
+        rightDoorSlab,
+        lockAlphaMat,
+        lockBetaMat,
+        doorLight
+      };
+    }
+
+    /*************************************************************************
+     * 8. PEERJS WEBRTC P2P NETWORKING LAYER (HOST-AUTHORITATIVE)
+     * Implements all required packet types:
+     * INIT_SEED, PLAYER_MOVE, KEY_PICKUP, KEY_INSERT, TIMER_SYNC,
+     * GAME_WIN, GAME_OVER, plus PING, PONG, TORCH_TOGGLE
+     *************************************************************************/
+    const PEER_PREFIX = 'SECTOR09-COOP-MAZE-';
+    let peer = null;
+    let conn = null;
+    let networkTickInterval = null;
+    let timerSyncInterval = null;
+    let pingInterval = null;
+
+    const ui = {
+      lobbyOverlay: document.getElementById('lobby-overlay'),
+      pauseOverlay: document.getElementById('pause-overlay'),
+      endgameOverlay: document.getElementById('endgame-overlay'),
+      hudLayer: document.getElementById('hud-layer'),
+      hudTimer: document.getElementById('hud-timer'),
+      hudSubstatus: document.getElementById('hud-substatus'),
+      hudNetRole: document.getElementById('hud-net-role'),
+      hudPing: document.getElementById('hud-ping'),
+      hudCoopDist: document.getElementById('hud-coop-dist'),
+      hudKeyStatus: document.getElementById('hud-key-status'),
+      hudDoorStatus: document.getElementById('hud-door-status'),
+      hudTorchStatus: document.getElementById('hud-torch-status'),
+      hudPracticeHint: document.getElementById('hud-practice-hint'),
+      hudExtractionZone: document.getElementById('hud-extraction-zone'),
+      hudZoneCount: document.getElementById('hud-zone-count'),
+      interactionPrompt: document.getElementById('interaction-prompt'),
+      lobbyLinkState: document.getElementById('lobby-link-state'),
+      lobbyPing: document.getElementById('lobby-ping'),
+      lobbyLog: document.getElementById('lobby-log'),
+      hostCodePanel: document.getElementById('host-code-panel'),
+      hostRoomCode: document.getElementById('host-room-code'),
+      hostWaitStatus: document.getElementById('host-wait-status'),
+      btnCreateSession: document.getElementById('btn-create-session'),
+      btnCopyCode: document.getElementById('btn-copy-code'),
+      btnStartExpedition: document.getElementById('btn-start-expedition'),
+      btnSoloPractice: document.getElementById('btn-solo-practice'),
+      inputJoinCode: document.getElementById('input-join-code'),
+      btnJoinSession: document.getElementById('btn-join-session'),
+      btnResume: document.getElementById('btn-resume'),
+      btnRematch: document.getElementById('btn-rematch'),
+      btnReturnLobby: document.getElementById('btn-return-lobby'),
+      endgameTag: document.getElementById('endgame-tag'),
+      endgameTitle: document.getElementById('endgame-title'),
+      endgameDesc: document.getElementById('endgame-desc'),
+      endgameTime: document.getElementById('endgame-time'),
+      endgameSeed: document.getElementById('endgame-seed')
+    };
+
+    function setLobbyLog(msg, isAlert = false) {
+      ui.lobbyLog.textContent = msg.toUpperCase();
+      ui.lobbyLog.style.color = isAlert ? '#DC2626' : '#F4F4F0';
+    }
+
+    function generateRoomCode() {
+      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+      let code = '';
+      for (let i = 0; i < 5; i++) {
+        code += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+      return code;
+    }
+
+    function sendPacket(type, payload = {}) {
+      if (conn && conn.open) {
+        try {
+          conn.send({ type, ...payload });
+        } catch (err) {
+          console.warn('Packet send error:', err);
+        }
+      }
+    }
+
+    function setupConnectionHandlers(connection) {
+      conn = connection;
+
+      conn.on('open', () => {
+        state.connected = true;
+        ui.lobbyLinkState.textContent = 'CONNECTED (WEBRTC)';
+        ui.lobbyLinkState.style.color = '#EAB308';
+
+        if (state.role === 'HOST') {
+          ui.hostWaitStatus.textContent = 'OPERATIVE 02 LINKED AND READY.';
+          ui.hostWaitStatus.style.color = '#EAB308';
+          ui.btnStartExpedition.disabled = false;
+          ui.btnStartExpedition.textContent = 'START EXPEDITION';
+          setLobbyLog('OPERATIVE 02 CONNECTED. CLICK START EXPEDITION TO DEPLOY.');
+
+          // Generate deterministic seed and send INIT_SEED handshake immediately
+          state.seed = Math.floor(100000 + Math.random() * 899999);
+          buildMazeScene(state.seed);
+          sendPacket('INIT_SEED', { seed: state.seed, startNow: false });
+        } else {
+          setLobbyLog('CONNECTED TO HOST. AWAITING HOST TO START EXPEDITION...');
+        }
+
+        // Start 1Hz PING latency measurement
+        if (pingInterval) clearInterval(pingInterval);
+        pingInterval = setInterval(() => {
+          state.lastPingSentAt = performance.now();
+          sendPacket('PING', { t: state.lastPingSentAt });
+        }, 1000);
+      });
+
+      conn.on('data', (data) => {
+        if (!data || !data.type) return;
+        handleNetworkPacket(data);
+      });
+
+      conn.on('close', () => {
+        state.connected = false;
+        ui.lobbyLinkState.textContent = 'DISCONNECTED';
+        ui.lobbyLinkState.style.color = '#DC2626';
+        setLobbyLog('PEER CONNECTION CLOSED.', true);
+      });
+
+      conn.on('error', (err) => {
+        setLobbyLog('CONNECTION ERROR: ' + (err.message || 'NETWORK FAULT'), true);
+      });
+    }
+
+    function handleNetworkPacket(pkt) {
+      switch (pkt.type) {
+        case 'PING':
+          sendPacket('PONG', { t: pkt.t });
+          break;
+
+        case 'PONG': {
+          const rtt = Math.max(1, Math.round(performance.now() - pkt.t));
+          state.pingMs = rtt;
+          ui.lobbyPing.textContent = `${rtt} MS`;
+          ui.hudPing.textContent = `PING: ${rtt} MS`;
+          break;
+        }
+
+        case 'INIT_SEED':
+          state.seed = pkt.seed;
+          buildMazeScene(state.seed);
+          setLobbyLog(`MAZE SEED #${state.seed} SYNCHRONIZED WITH HOST.`);
+          if (pkt.startNow) {
+            beginExpeditionMatch();
+          }
+          break;
+
+        case 'PLAYER_MOVE': {
+          state.remoteTargetPos.set(pkt.x, 0, pkt.z);
+          const euler = new THREE.Euler(0, pkt.yaw, 0, 'YXZ');
+          state.remoteTargetQuat.setFromEuler(euler);
+          state.remoteTargetPitch = pkt.pitch || 0;
+          state.remoteMoving = !!pkt.moving;
+          break;
+        }
+
+        case 'TORCH_TOGGLE':
+          state.remoteTorchOn = !!pkt.torchOn;
+          sound.playTorchClick();
+          break;
+
+        case 'KEY_PICKUP':
+          if (pkt.keyType === 'ALPHA') {
+            state.keyAlphaCollected = true;
+            if (keyAlphaMeshGroup) keyAlphaMeshGroup.visible = false;
+          } else if (pkt.keyType === 'BETA') {
+            state.keyBetaCollected = true;
+            if (keyBetaMeshGroup) keyBetaMeshGroup.visible = false;
+          }
+          sound.playKeyPickup();
+          updateHudIndicators();
+          break;
+
+        case 'KEY_INSERT': {
+          if (pkt.keyType === 'ALPHA') state.lockAlphaInserted = true;
+          if (pkt.keyType === 'BETA') state.lockBetaInserted = true;
+          const bothUnlocked = state.lockAlphaInserted && state.lockBetaInserted;
+          sound.playLockInsert(bothUnlocked);
+          updateDoorLockVisuals();
+          updateHudIndicators();
+          break;
+        }
+
+        case 'TIMER_SYNC':
+          state.timeRemaining = pkt.timeRemaining;
+          updateTimerDisplay();
+          break;
+
+        case 'GAME_WIN':
+          triggerEndState(true, pkt.timeRemaining ?? state.timeRemaining);
+          break;
+
+        case 'GAME_OVER':
+          triggerEndState(false, 0);
+          break;
+      }
+    }
+
+    // Host Session Creation
+    ui.btnCreateSession.addEventListener('click', () => {
+      sound.playBeep(660, 0.05);
+      if (peer) peer.destroy();
+
+      state.role = 'HOST';
+      state.roomCode = generateRoomCode();
+      ui.hostRoomCode.textContent = state.roomCode;
+      ui.hostCodePanel.classList.remove('hidden');
+      ui.btnCreateSession.disabled = true;
+      ui.btnJoinSession.disabled = true;
+      setLobbyLog('INITIALIZING WEBRTC SIGNALING NODE...');
+
+      peer = new Peer(PEER_PREFIX + state.roomCode);
+
+      peer.on('open', () => {
+        ui.lobbyLinkState.textContent = 'HOST LISTENING';
+        setLobbyLog(`SESSION CREATED [${state.roomCode}]. SHARE CODE WITH OPERATIVE 02.`);
+      });
+
+      peer.on('connection', (incomingConn) => {
+        setupConnectionHandlers(incomingConn);
+      });
+
+      peer.on('error', (err) => {
+        setLobbyLog('SIGNALING ERROR: ' + (err.type || err.message), true);
+        ui.btnCreateSession.disabled = false;
+      });
+    });
+
+    // Copy Room Code using document.execCommand('copy')
+    ui.btnCopyCode.addEventListener('click', () => {
+      sound.playBeep(880, 0.04);
+      const tempInput = document.createElement('input');
+      tempInput.value = state.roomCode;
+      document.body.appendChild(tempInput);
+      tempInput.select();
+      try {
+        document.execCommand('copy');
+        ui.btnCopyCode.textContent = 'COPIED';
+        setTimeout(() => { ui.btnCopyCode.textContent = 'COPY CODE'; }, 1500);
+      } catch (e) {
+        console.warn('Clipboard copy fallback failed');
+      }
+      document.body.removeChild(tempInput);
+    });
+
+    // Client Join Session
+    ui.btnJoinSession.addEventListener('click', () => {
+      sound.playBeep(660, 0.05);
+      const code = ui.inputJoinCode.value.trim().toUpperCase();
+      if (code.length !== 5) {
+        setLobbyLog('INVALID ROOM CODE. ENTER ALL 5 CHARACTERS.', true);
+        return;
+      }
+
+      if (peer) peer.destroy();
+      state.role = 'CLIENT';
+      state.roomCode = code;
+      ui.btnJoinSession.disabled = true;
+      ui.btnCreateSession.disabled = true;
+      setLobbyLog(`CONNECTING TO HOST ROOM [${code}]...`);
+
+      peer = new Peer();
+      peer.on('open', () => {
+        const outgoingConn = peer.connect(PEER_PREFIX + code, { reliable: true });
+        setupConnectionHandlers(outgoingConn);
+      });
+
+      peer.on('error', (err) => {
+        setLobbyLog('COULD NOT REACH HOST: ' + (err.type || err.message), true);
+        ui.btnJoinSession.disabled = false;
+        ui.btnCreateSession.disabled = false;
+      });
+    });
+
+    // Host Clicks "START EXPEDITION"
+    ui.btnStartExpedition.addEventListener('click', () => {
+      if (state.role !== 'HOST' || !state.connected) return;
+      sound.playBeep(920, 0.08);
+      state.seed = Math.floor(100000 + Math.random() * 899999);
+      buildMazeScene(state.seed);
+      sendPacket('INIT_SEED', { seed: state.seed, startNow: true });
+      beginExpeditionMatch();
+    });
+
+    // Solo Practice / Immediate Test Button
+    ui.btnSoloPractice.addEventListener('click', () => {
+      sound.playBeep(920, 0.08);
+      state.role = 'SOLO';
+      state.seed = Math.floor(100000 + Math.random() * 899999);
+      buildMazeScene(state.seed);
+      beginExpeditionMatch();
+    });
+
+    /*************************************************************************
+     * 9. MATCH INITIALIZATION, HUD UPDATES & TIMER SYNC
+     *************************************************************************/
+    function beginExpeditionMatch() {
+      state.matchActive = true;
+      state.matchEnded = false;
+      state.timeRemaining = 300.0; // 05:00
+      state.myKey = null;
+      state.keyAlphaCollected = false;
+      state.keyBetaCollected = false;
+      state.lockAlphaInserted = false;
+      state.lockBetaInserted = false;
+      state.doorOpenProgress = 0;
+      state.torchOn = true;
+      state.remoteTorchOn = true;
+      state.botActive = false;
+      state.botKey = null;
+
+      // Both players spawn together at center starting tile (0, 0) with slight horizontal offset
+      if (state.role === 'CLIENT') {
+        state.playerPos.set(0.75, 1.65, 0);
+        state.remoteCurrentPos.set(-0.75, 0, 0);
+        state.remoteTargetPos.set(-0.75, 0, 0);
+      } else {
+        state.playerPos.set(-0.75, 1.65, 0);
+        state.remoteCurrentPos.set(0.75, 0, 0);
+        state.remoteTargetPos.set(0.75, 0, 0);
+      }
+
+      state.playerYaw = 0;
+      state.playerPitch = 0;
+      camera.position.copy(state.playerPos);
+      camera.rotation.set(0, 0, 0, 'YXZ');
+
+      remotePlayerMesh.position.copy(state.remoteCurrentPos);
+      remotePlayerMesh.visible = true;
+
+      if (keyAlphaMeshGroup) keyAlphaMeshGroup.visible = true;
+      if (keyBetaMeshGroup) keyBetaMeshGroup.visible = true;
+      updateDoorLockVisuals();
+      updateHudIndicators();
+      updateTimerDisplay();
+
+      ui.lobbyOverlay.classList.add('hidden');
+      ui.endgameOverlay.classList.add('hidden');
+      ui.hudLayer.style.display = 'block';
+      ui.hudNetRole.textContent = `ROLE: ${state.role}`;
+
+      if (state.role === 'SOLO') {
+        ui.hudPing.textContent = 'PING: 0 MS (LOCAL)';
+        ui.hudPracticeHint.classList.remove('hidden');
+      } else {
+        ui.hudPracticeHint.classList.add('hidden');
+      }
+
+      // Start fixed 25Hz (40ms) Network State Packet Loop
+      if (networkTickInterval) clearInterval(networkTickInterval);
+      if (state.role === 'HOST' || state.role === 'CLIENT') {
+        networkTickInterval = setInterval(() => {
+          if (!state.matchActive || state.matchEnded) return;
+          const isMoving = state.moveForward || state.moveBackward || state.moveLeft || state.moveRight;
+          sendPacket('PLAYER_MOVE', {
+            x: Number(state.playerPos.x.toFixed(3)),
+            z: Number(state.playerPos.z.toFixed(3)),
+            yaw: Number(state.playerYaw.toFixed(3)),
+            pitch: Number(state.playerPitch.toFixed(3)),
+            moving: isMoving
+          });
+        }, 40);
+      }
+
+      // If Host, broadcast authoritative TIMER_SYNC every 1000ms
+      if (timerSyncInterval) clearInterval(timerSyncInterval);
+      if (state.role === 'HOST') {
+        timerSyncInterval = setInterval(() => {
+          if (!state.matchActive || state.matchEnded) return;
+          sendPacket('TIMER_SYNC', { timeRemaining: state.timeRemaining });
+        }, 1000);
+      }
+
+      requestPointerLock();
+    }
+
+    function updateHudIndicators() {
+      if (!state.myKey) {
+        ui.hudKeyStatus.textContent = '[KEY: NONE]';
+        ui.hudKeyStatus.style.color = '#F4F4F0';
+      } else {
+        ui.hudKeyStatus.textContent = `[KEY: ACQUIRED (${state.myKey})]`;
+        ui.hudKeyStatus.style.color = '#EAB308';
+      }
+
+      const locksCount = (state.lockAlphaInserted ? 1 : 0) + (state.lockBetaInserted ? 1 : 0);
+      ui.hudDoorStatus.textContent = `[DOOR LOCKS: ${locksCount}/2]`;
+      ui.hudDoorStatus.style.color = locksCount === 2 ? '#EAB308' : '#F4F4F0';
+    }
+
+    function updateDoorLockVisuals() {
+      if (!blastDoorObj) return;
+      blastDoorObj.lockAlphaMat.color.setHex(state.lockAlphaInserted ? 0xEAB308 : 0xDC2626);
+      blastDoorObj.lockBetaMat.color.setHex(state.lockBetaInserted ? 0xF4F4F0 : 0xDC2626);
+    }
+
+    function updateTimerDisplay() {
+      const clamped = Math.max(0, Math.ceil(state.timeRemaining));
+      const mins = String(Math.floor(clamped / 60)).padStart(2, '0');
+      const secs = String(clamped % 60).padStart(2, '0');
+      ui.hudTimer.textContent = `${mins}:${secs}`;
+
+      if (clamped <= 30) {
+        ui.hudTimer.style.color = '#DC2626';
+      } else {
+        ui.hudTimer.style.color = '#F4F4F0';
+      }
+    }
+
+    function triggerEndState(isVictory, finalTimeRemaining) {
+      if (state.matchEnded) return;
+      state.matchEnded = true;
+      state.matchActive = false;
+
+      if (document.pointerLockElement) {
+        document.exitPointerLock();
+      }
+
+      ui.pauseOverlay.classList.add('hidden');
+      ui.endgameOverlay.classList.remove('hidden');
+
+      const clamped = Math.max(0, Math.ceil(finalTimeRemaining));
+      const mins = String(Math.floor(clamped / 60)).padStart(2, '0');
+      const secs = String(clamped % 60).padStart(2, '0');
+      ui.endgameTime.textContent = `${mins}:${secs}`;
+      ui.endgameSeed.textContent = `#${state.seed}`;
+
+      if (isVictory) {
+        sound.playKeyPickup();
+        ui.endgameTag.textContent = 'EXTRACTION VERIFIED // CO-OP PROTOCOL COMPLETE';
+        ui.endgameTag.style.color = '#EAB308';
+        ui.endgameTitle.textContent = 'ESCAPED';
+        ui.endgameTitle.style.color = '#F4F4F0';
+        ui.endgameDesc.textContent = 'Both operatives successfully engaged Lock Alpha and Lock Beta and extracted through the perimeter blast door.';
+      } else {
+        sound.playBeep(190, 0.45, 'sawtooth', 0.35);
+        ui.endgameTag.textContent = 'CONTAINMENT BREACH TIMEOUT // 00:00';
+        ui.endgameTag.style.color = '#DC2626';
+        ui.endgameTitle.textContent = 'CONTAINMENT SEALED / GAME OVER';
+        ui.endgameTitle.style.color = '#DC2626';
+        ui.endgameDesc.textContent = 'The 5-minute extraction window expired prior to dual-operative perimeter clearance. Sector 09 bulkheads have been permanently sealed.';
+      }
+    }
+
+    ui.btnRematch.addEventListener('click', () => {
+      sound.playBeep(880, 0.06);
+      if (state.role === 'SOLO') {
+        state.seed = Math.floor(100000 + Math.random() * 899999);
+        buildMazeScene(state.seed);
+        beginExpeditionMatch();
+      } else if (state.role === 'HOST' && state.connected) {
+        state.seed = Math.floor(100000 + Math.random() * 899999);
+        buildMazeScene(state.seed);
+        sendPacket('INIT_SEED', { seed: state.seed, startNow: true });
+        beginExpeditionMatch();
+      } else if (state.role === 'CLIENT') {
+        ui.endgameDesc.textContent = 'Awaiting Host to initiate new expedition seed...';
+      }
+    });
+
+    ui.btnReturnLobby.addEventListener('click', () => {
+      sound.playBeep(660, 0.05);
+      state.matchActive = false;
+      state.matchEnded = false;
+      ui.endgameOverlay.classList.add('hidden');
+      ui.hudLayer.style.display = 'none';
+      ui.lobbyOverlay.classList.remove('hidden');
+    });
+
+    /*************************************************************************
+     * 10. POINTER LOCK FIRST-PERSON CONTROLS & INTERACTION HANDLER
+     *************************************************************************/
+    function requestPointerLock() {
+      sound.init();
+      const el = renderer.domElement;
+      if (el.requestPointerLock) {
+        el.requestPointerLock();
+      }
+    }
+
+    document.addEventListener('pointerlockchange', () => {
+      if (!state.matchActive || state.matchEnded) return;
+      if (document.pointerLockElement === renderer.domElement) {
+        ui.pauseOverlay.classList.add('hidden');
+      } else {
+        state.moveForward = false;
+        state.moveBackward = false;
+        state.moveLeft = false;
+        state.moveRight = false;
+        state.isSprinting = false;
+        ui.pauseOverlay.classList.remove('hidden');
+      }
+    });
+
+    ui.btnResume.addEventListener('click', () => {
+      requestPointerLock();
+    });
+
+    document.addEventListener('mousemove', (e) => {
+      if (!state.matchActive || state.matchEnded) return;
+      if (document.pointerLockElement !== renderer.domElement) return;
+
+      const sensitivity = 0.0021;
+      state.playerYaw -= e.movementX * sensitivity;
+      state.playerPitch -= e.movementY * sensitivity;
+      const maxPitch = Math.PI / 2 - 0.08;
+      state.playerPitch = Math.max(-maxPitch, Math.min(maxPitch, state.playerPitch));
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (!state.matchActive || state.matchEnded) return;
+
+      switch (e.code) {
+        case 'KeyW':
+        case 'ArrowUp':
+          state.moveForward = true;
+          break;
+        case 'KeyS':
+        case 'ArrowDown':
+          state.moveBackward = true;
+          break;
+        case 'KeyA':
+        case 'ArrowLeft':
+          state.moveLeft = true;
+          break;
+        case 'KeyD':
+        case 'ArrowRight':
+          state.moveRight = true;
+          break;
+        case 'ShiftLeft':
+        case 'ShiftRight':
+          state.isSprinting = true;
+          break;
+        case 'KeyF':
+          state.torchOn = !state.torchOn;
+          localSpotLight.visible = state.torchOn;
+          localBounceLight.visible = state.torchOn;
+          ui.hudTorchStatus.textContent = `[F] TORCH: ${state.torchOn ? 'ON' : 'OFF'} // [SHIFT] SPRINT // [E] INTERACT`;
+          sound.playTorchClick();
+          sendPacket('TORCH_TOGGLE', { torchOn: state.torchOn });
+          break;
+        case 'KeyE':
+          attemptContextualInteraction();
+          break;
+        case 'KeyB':
+          if (state.role === 'SOLO') {
+            state.botActive = !state.botActive;
+            sound.playBeep(state.botActive ? 980 : 440, 0.07);
+            ui.hudPracticeHint.textContent = state.botActive
+              ? '[B] BROTHER BOT ACTIVE: AUTONOMOUSLY SEEKING SECOND KEY & DOOR'
+              : '[B] DISPATCH BROTHER BOT (SOLO TEST MODE)';
+          }
+          break;
+      }
+    });
+
+    document.addEventListener('keyup', (e) => {
+      switch (e.code) {
+        case 'KeyW':
+        case 'ArrowUp':
+          state.moveForward = false;
+          break;
+        case 'KeyS':
+        case 'ArrowDown':
+          state.moveBackward = false;
+          break;
+        case 'KeyA':
+        case 'ArrowLeft':
+          state.moveLeft = false;
+          break;
+        case 'KeyD':
+        case 'ArrowRight':
+          state.moveRight = false;
+          break;
+        case 'ShiftLeft':
+        case 'ShiftRight':
+          state.isSprinting = false;
+          break;
+      }
+    });
+
+    /*************************************************************************
+     * 11. DUAL-KEY COOPERATIVE INTERACTION LOGIC
+     *************************************************************************/
+    function getInteractionContext() {
+      if (!currentMaze) return null;
+
+      const p2D = new THREE.Vector2(state.playerPos.x, state.playerPos.z);
+
+      // Check proximity to Key Alpha
+      if (!state.keyAlphaCollected) {
+        const dAlpha = p2D.distanceTo(new THREE.Vector2(currentMaze.keyAlphaPos.x, currentMaze.keyAlphaPos.z));
+        if (dAlpha < 2.35) {
+          if (state.myKey !== null) {
+            return { type: 'CAPACITY_FULL', label: 'CAPACITY FULL: BROTHER MUST COLLECT THIS KEY', isWarning: true };
+          }
+          return { type: 'PICKUP_ALPHA', label: '[E] PICK UP KEY ALPHA' };
+        }
+      }
+
+      // Check proximity to Key Beta
+      if (!state.keyBetaCollected) {
+        const dBeta = p2D.distanceTo(new THREE.Vector2(currentMaze.keyBetaPos.x, currentMaze.keyBetaPos.z));
+        if (dBeta < 2.35) {
+          if (state.myKey !== null) {
+            return { type: 'CAPACITY_FULL', label: 'CAPACITY FULL: BROTHER MUST COLLECT THIS KEY', isWarning: true };
+          }
+          return { type: 'PICKUP_BETA', label: '[E] PICK UP KEY BETA' };
+        }
+      }
+
+      // Check proximity to Perimeter Escape Blast Door
+      const dDoor = p2D.distanceTo(new THREE.Vector2(currentMaze.doorWorldPos.x, currentMaze.doorWorldPos.z + TILE_SIZE * 0.55));
+      if (dDoor < 3.0) {
+        if (state.myKey !== null) {
+          return { type: 'INSERT_KEY', label: `[E] INSERT KEY ${state.myKey} INTO LOCK SLOT` };
+        } else if (!state.lockAlphaInserted || !state.lockBetaInserted) {
+          return { type: 'DOOR_LOCKED', label: 'DUAL LOCKS ENGAGED // REQUIRE KEY ALPHA & KEY BETA', isMuted: true };
+        }
+      }
+
+      return null;
+    }
+
+    function attemptContextualInteraction() {
+      const ctx = getInteractionContext();
+      if (!ctx) return;
+
+      if (ctx.type === 'CAPACITY_FULL') {
+        sound.playBeep(220, 0.14, 'sawtooth', 0.25);
+        return;
+      }
+
+      if (ctx.type === 'PICKUP_ALPHA') {
+        state.myKey = 'ALPHA';
+        state.keyAlphaCollected = true;
+        if (keyAlphaMeshGroup) keyAlphaMeshGroup.visible = false;
+        sound.playKeyPickup();
+        updateHudIndicators();
+        sendPacket('KEY_PICKUP', { keyType: 'ALPHA' });
+      } else if (ctx.type === 'PICKUP_BETA') {
+        state.myKey = 'BETA';
+        state.keyBetaCollected = true;
+        if (keyBetaMeshGroup) keyBetaMeshGroup.visible = false;
+        sound.playKeyPickup();
+        updateHudIndicators();
+        sendPacket('KEY_PICKUP', { keyType: 'BETA' });
+      } else if (ctx.type === 'INSERT_KEY') {
+        const insertedType = state.myKey;
+        state.myKey = null;
+        if (insertedType === 'ALPHA') state.lockAlphaInserted = true;
+        if (insertedType === 'BETA') state.lockBetaInserted = true;
+
+        const bothUnlocked = state.lockAlphaInserted && state.lockBetaInserted;
+        sound.playLockInsert(bothUnlocked);
+        updateDoorLockVisuals();
+        updateHudIndicators();
+        sendPacket('KEY_INSERT', { keyType: insertedType });
+      }
+    }
+
+    /*************************************************************************
+     * 12. ZERO-JITTER CIRCLE-TO-GRID-AABB WALL COLLISION RESOLVER
+     *************************************************************************/
+    const PLAYER_RADIUS = 0.42;
+
+    function resolveMazeCollision(pos) {
+      if (!currentMaze) return;
+
+      const tile = currentMaze.worldToTile(pos.x, pos.z);
+      const halfTile = TILE_SIZE / 2;
+
+      for (let dz = -1; dz <= 1; dz++) {
+        for (let dx = -1; dx <= 1; dx++) {
+          const gx = tile.gx + dx;
+          const gz = tile.gz + dz;
+
+          const isDoorCell = gx === currentMaze.doorGridPos.gx && gz === currentMaze.doorGridPos.gz;
+          const doorPassable = isDoorCell && state.doorOpenProgress > 0.85;
+
+          if (currentMaze.isWall(gx, gz) && !doorPassable) {
+            const wallCenter = currentMaze.tileToWorld(gx, gz);
+            const minX = wallCenter.x - halfTile;
+            const maxX = wallCenter.x + halfTile;
+            const minZ = wallCenter.z - halfTile;
+            const maxZ = wallCenter.z + halfTile;
+
+            // Closest point on AABB to player circle center
+            const closestX = Math.max(minX, Math.min(pos.x, maxX));
+            const closestZ = Math.max(minZ, Math.min(pos.z, maxZ));
+
+            const distX = pos.x - closestX;
+            const distZ = pos.z - closestZ;
+            const distSq = distX * distX + distZ * distZ;
+
+            if (distSq < PLAYER_RADIUS * PLAYER_RADIUS && distSq > 0.000001) {
+              const dist = Math.sqrt(distSq);
+              const overlap = PLAYER_RADIUS - dist;
+              pos.x += (distX / dist) * overlap;
+              pos.z += (distZ / dist) * overlap;
+            }
+          }
+        }
+      }
+    }
+
+    /*************************************************************************
+     * 13. SOLO TEST MODE AUTONOMOUS BROTHER BOT (BFS PATHFINDING)
+     * Allows a solo developer/tester to press [B] and watch Player 2 navigate
+     * the corridors with his flashlight, pick up the other key, and meet at the door.
+     *************************************************************************/
+    function findShortestGridPath(startGX, startGZ, goalGX, goalGZ) {
+      if (!currentMaze) return [];
+      const queue = [{ gx: startGX, gz: startGZ, path: [] }];
+      const visited = new Set([`${startGX},${startGZ}`]);
+      const dirs = [
+        { dx: 0, dz: -1 },
+        { dx: 1, dz: 0 },
+        { dx: 0, dz: 1 },
+        { dx: -1, dz: 0 }
+      ];
+
+      while (queue.length > 0) {
+        const cur = queue.shift();
+        if (cur.gx === goalGX && cur.gz === goalGZ) {
+          return cur.path;
+        }
+        for (const d of dirs) {
+          const nx = cur.gx + d.dx;
+          const nz = cur.gz + d.dz;
+          const key = `${nx},${nz}`;
+          if (!visited.has(key) && !currentMaze.isWall(nx, nz)) {
+            visited.add(key);
+            queue.push({ gx: nx, gz: nz, path: [...cur.path, { gx: nx, gz: nz }] });
+          }
+        }
+      }
+      return [];
+    }
+
+    function updateSoloBrotherBot(dt) {
+      if (state.role !== 'SOLO' || !state.botActive || !currentMaze) return;
+
+      // Determine Bot Goal:
+      // 1. If bot has no key, go pick up whichever key isn't collected yet (prefer BETA if player took ALPHA or is heading to ALPHA)
+      // 2. Once bot holds a key, navigate to Escape Zone (doorGridPos.gx, 1) and insert key
+      let goalWorld = currentMaze.escapeZoneCenter;
+
+      if (!state.botKey) {
+        if (!state.keyBetaCollected && state.myKey !== 'BETA') {
+          goalWorld = currentMaze.keyBetaPos;
+        } else if (!state.keyAlphaCollected && state.myKey !== 'ALPHA') {
+          goalWorld = currentMaze.keyAlphaPos;
+        }
+      }
+
+      state.botPathTimer -= dt;
+      if (state.botPathTimer <= 0 || state.botPath.length === 0) {
+        state.botPathTimer = 0.6;
+        const startTile = currentMaze.worldToTile(state.remoteTargetPos.x, state.remoteTargetPos.z);
+        const goalTile = currentMaze.worldToTile(goalWorld.x, goalWorld.z);
+        state.botPath = findShortestGridPath(startTile.gx, startTile.gz, goalTile.gx, goalTile.gz);
+      }
+
+      let nextTarget = goalWorld;
+      if (state.botPath.length > 0) {
+        const nextCell = state.botPath[0];
+        nextTarget = currentMaze.tileToWorld(nextCell.gx, nextCell.gz);
+        if (Math.hypot(nextTarget.x - state.remoteTargetPos.x, nextTarget.z - state.remoteTargetPos.z) < 0.35) {
+          state.botPath.shift();
+        }
+      }
+
+      const dx = nextTarget.x - state.remoteTargetPos.x;
+      const dz = nextTarget.z - state.remoteTargetPos.z;
+      const dist = Math.hypot(dx, dz);
+
+      if (dist > 0.15) {
+        const botSpeed = 4.4;
+        state.remoteTargetPos.x += (dx / dist) * botSpeed * dt;
+        state.remoteTargetPos.z += (dz / dist) * botSpeed * dt;
+        const targetYaw = Math.atan2(-dx, -dz);
+        state.remoteTargetQuat.setFromEuler(new THREE.Euler(0, targetYaw, 0, 'YXZ'));
+        state.remoteMoving = true;
+      } else {
+        state.remoteMoving = false;
+      }
+
+      // Check if Bot reached Key Alpha or Key Beta
+      if (!state.botKey) {
+        if (!state.keyBetaCollected && Math.hypot(state.remoteTargetPos.x - currentMaze.keyBetaPos.x, state.remoteTargetPos.z - currentMaze.keyBetaPos.z) < 1.2) {
+          state.botKey = 'BETA';
+          state.keyBetaCollected = true;
+          if (keyBetaMeshGroup) keyBetaMeshGroup.visible = false;
+          sound.playKeyPickup();
+        } else if (!state.keyAlphaCollected && Math.hypot(state.remoteTargetPos.x - currentMaze.keyAlphaPos.x, state.remoteTargetPos.z - currentMaze.keyAlphaPos.z) < 1.2) {
+          state.botKey = 'ALPHA';
+          state.keyAlphaCollected = true;
+          if (keyAlphaMeshGroup) keyAlphaMeshGroup.visible = false;
+          sound.playKeyPickup();
+        }
+      } else {
+        // Check if Bot reached Escape Zone to insert its key
+        if (Math.hypot(state.remoteTargetPos.x - currentMaze.escapeZoneCenter.x, state.remoteTargetPos.z - currentMaze.escapeZoneCenter.z) < 1.8) {
+          if (state.botKey === 'ALPHA') state.lockAlphaInserted = true;
+          if (state.botKey === 'BETA') state.lockBetaInserted = true;
+          state.botKey = null;
+          const bothUnlocked = state.lockAlphaInserted && state.lockBetaInserted;
+          sound.playLockInsert(bothUnlocked);
+          updateDoorLockVisuals();
+          updateHudIndicators();
+        }
+      }
+    }
+
+    /*************************************************************************
+     * 14. MAIN 60+ FPS SIMULATION, INTERPOLATION & RENDER LOOP
+     *************************************************************************/
+    let prevTime = performance.now();
+    let lastBeepSecond = -1;
+
+    function animate(now) {
+      requestAnimationFrame(animate);
+
+      const dt = Math.min((now - prevTime) / 1000, 0.1);
+      prevTime = now;
+
+      if (state.matchActive && !state.matchEnded) {
+        // 1. Update 5-Minute Countdown Timer
+        state.timeRemaining -= dt;
+        updateTimerDisplay();
+
+        // Low-timer tension beep during final 15 seconds
+        const wholeSec = Math.ceil(state.timeRemaining);
+        if (wholeSec <= 15 && wholeSec > 0 && wholeSec !== lastBeepSecond) {
+          lastBeepSecond = wholeSec;
+          sound.playBeep(960, 0.06, 'sine', 0.22);
+        }
+
+        if ((state.role === 'HOST' || state.role === 'SOLO') && state.timeRemaining <= 0) {
+          sendPacket('GAME_OVER', {});
+          triggerEndState(false, 0);
+        }
+
+        // 2. First-Person Local Player Movement & Circle-AABB Sliding Collision
+        const moveSpeed = state.isSprinting ? 6.1 : 3.9;
+        const forward = new THREE.Vector3(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), state.playerYaw);
+        const right = new THREE.Vector3(1, 0, 0).applyAxisAngle(new THREE.Vector3(0, 1, 0), state.playerYaw);
+
+        const moveVec = new THREE.Vector3();
+        if (state.moveForward) moveVec.add(forward);
+        if (state.moveBackward) moveVec.sub(forward);
+        if (state.moveRight) moveVec.add(right);
+        if (state.moveLeft) moveVec.sub(right);
+
+        const isMovingLocally = moveVec.lengthSq() > 0.001;
+        if (isMovingLocally) {
+          moveVec.normalize().multiplyScalar(moveSpeed * dt);
+          state.playerPos.x += moveVec.x;
+          state.playerPos.z += moveVec.z;
+          resolveMazeCollision(state.playerPos);
+
+          // Procedural Viewbob & Synthesized Footsteps
+          const stepRate = state.isSprinting ? 11.5 : 7.8;
+          state.footstepAccum += dt * stepRate;
+          const bobOffset = Math.sin(state.footstepAccum) * (state.isSprinting ? 0.055 : 0.032);
+          camera.position.set(state.playerPos.x, 1.65 + bobOffset, state.playerPos.z);
+
+          // Sway first-person torch slightly
+          playerTorchGroup.position.x = Math.cos(state.footstepAccum * 0.5) * 0.015;
+          playerTorchGroup.position.y = Math.abs(Math.sin(state.footstepAccum)) * -0.018;
+
+          if (state.footstepAccum >= Math.PI) {
+            state.footstepAccum -= Math.PI;
+            sound.playFootstep(state.isSprinting ? 0.42 : 0.26, 0.92 + Math.random() * 0.16);
+          }
+        } else {
+          camera.position.lerp(new THREE.Vector3(state.playerPos.x, 1.65, state.playerPos.z), Math.min(1, dt * 12));
+          playerTorchGroup.position.lerp(new THREE.Vector3(0, 0, 0), Math.min(1, dt * 10));
+        }
+
+        camera.rotation.set(state.playerPitch, state.playerYaw, 0, 'YXZ');
+
+        // 3. Update Solo Practice Bot if enabled
+        updateSoloBrotherBot(dt);
+
+        // 4. Smooth 60+ FPS Linear Interpolation (Lerp) & Quaternion Slerp for Remote Player
+        const lerpAlpha = Math.min(1.0, dt * 15.0);
+        state.remoteCurrentPos.lerp(state.remoteTargetPos, lerpAlpha);
+        state.remoteCurrentQuat.slerp(state.remoteTargetQuat, lerpAlpha);
+        state.remoteCurrentPitch += (state.remoteTargetPitch - state.remoteCurrentPitch) * lerpAlpha;
+
+        remotePlayerMesh.position.copy(state.remoteCurrentPos);
+        remotePlayerMesh.quaternion.copy(state.remoteCurrentQuat);
+
+        // Update Remote Player Articulated Walk Cycle & Head/Torch Pitch
+        const rData = remotePlayerMesh.userData;
+        rData.headPivot.rotation.x = state.remoteCurrentPitch;
+        rData.torchGroup.rotation.x = state.remoteCurrentPitch - Math.PI * 0.38;
+
+        // Remote Torch Visibility
+        rData.remoteSpotLight.visible = state.remoteTorchOn;
+        rData.beamCone.visible = state.remoteTorchOn;
+        rData.suitGlow.visible = state.remoteTorchOn;
+        rData.lensMat.color.setHex(state.remoteTorchOn ? 0xFFFBEB : 0x222222);
+
+        if (state.remoteMoving) {
+          rData.walkPhase += dt * 10.5;
+          const swing = Math.sin(rData.walkPhase) * 0.48;
+          rData.leftLegPivot.rotation.x = swing;
+          rData.rightLegPivot.rotation.x = -swing;
+          rData.leftArmPivot.rotation.x = -swing * 0.65;
+          rData.bodyGroup.position.y = 0.95 + Math.abs(Math.cos(rData.walkPhase)) * 0.035;
+
+          // Spatial attenuated footsteps from partner
+          state.remoteStepAccum += dt * 10.5;
+          if (state.remoteStepAccum >= Math.PI) {
+            state.remoteStepAccum -= Math.PI;
+            const partnerDist = Math.hypot(
+              state.playerPos.x - state.remoteCurrentPos.x,
+              state.playerPos.z - state.remoteCurrentPos.z
+            );
+            if (partnerDist < 18) {
+              const atten = Math.max(0.03, (1 - partnerDist / 18) * 0.25);
+              sound.playFootstep(atten, 0.85);
+            }
+          }
+        } else {
+          rData.leftLegPivot.rotation.x *= 0.85;
+          rData.rightLegPivot.rotation.x *= 0.85;
+          rData.leftArmPivot.rotation.x *= 0.85;
+          rData.bodyGroup.position.y = 0.95;
+        }
+
+        // Update Partner Distance Telemetry
+        const distToPartner = Math.hypot(
+          state.playerPos.x - state.remoteCurrentPos.x,
+          state.playerPos.z - state.remoteCurrentPos.z
+        );
+        ui.hudCoopDist.textContent = `PARTNER: ${distToPartner.toFixed(1)} M`;
+
+        // 5. Rotate Floating Key Cylinders
+        if (keyAlphaMeshGroup && keyAlphaMeshGroup.visible) {
+          keyAlphaMeshGroup.userData.keyHolder.rotation.y += dt * 1.8;
+          keyAlphaMeshGroup.userData.keyHolder.position.y = 1.38 + Math.sin(now * 0.003) * 0.06;
+        }
+        if (keyBetaMeshGroup && keyBetaMeshGroup.visible) {
+          keyBetaMeshGroup.userData.keyHolder.rotation.y -= dt * 1.8;
+          keyBetaMeshGroup.userData.keyHolder.position.y = 1.38 + Math.cos(now * 0.003) * 0.06;
+        }
+
+        // 6. Animate Heavy Blast Door Opening & Check Dual-Player Extraction Zone
+        const bothLocksActive = state.lockAlphaInserted && state.lockBetaInserted;
+        if (bothLocksActive && blastDoorObj) {
+          state.doorOpenProgress = Math.min(1.0, state.doorOpenProgress + dt * 0.45);
+          const slideOffset = state.doorOpenProgress * 1.25;
+          blastDoorObj.leftDoorSlab.position.x = -0.7 - slideOffset;
+          blastDoorObj.rightDoorSlab.position.x = 0.7 + slideOffset;
+          blastDoorObj.doorLight.color.setHex(0xF4F4F0);
+          blastDoorObj.doorLight.intensity = 2.2;
+        }
+
+        // Check if players are standing inside the Escape Zone in front of the Blast Door
+        if (currentMaze) {
+          const zonePos = currentMaze.escapeZoneCenter;
+          const localInZone =
+            Math.abs(state.playerPos.x - zonePos.x) < 1.65 &&
+            Math.abs(state.playerPos.z - zonePos.z) < 1.85;
+          const remoteInZone =
+            Math.abs(state.remoteCurrentPos.x - zonePos.x) < 1.65 &&
+            Math.abs(state.remoteCurrentPos.z - zonePos.z) < 1.85;
+
+          const countInZone = (localInZone ? 1 : 0) + (remoteInZone ? 1 : 0);
+
+          if (bothLocksActive || localInZone || remoteInZone) {
+            ui.hudExtractionZone.classList.remove('hidden');
+            ui.hudZoneCount.textContent = `${countInZone}/2`;
+          } else {
+            ui.hudExtractionZone.classList.add('hidden');
+          }
+
+          if (bothLocksActive && state.doorOpenProgress > 0.85 && localInZone && remoteInZone) {
+            if (state.role === 'HOST' || state.role === 'SOLO') {
+              sendPacket('GAME_WIN', { timeRemaining: state.timeRemaining });
+              triggerEndState(true, state.timeRemaining);
+            }
+          }
+        }
+
+        // 7. Update Center Reticle Contextual Prompt
+        const ctx = getInteractionContext();
+        if (ctx) {
+          ui.interactionPrompt.textContent = ctx.label;
+          ui.interactionPrompt.style.opacity = '1';
+          if (ctx.isWarning) {
+            ui.interactionPrompt.style.color = '#DC2626';
+          } else if (ctx.isMuted) {
+            ui.interactionPrompt.style.color = '#888884';
+          } else {
+            ui.interactionPrompt.style.color = '#EAB308';
+          }
+        } else {
+          ui.interactionPrompt.style.opacity = '0';
+        }
+      }
+
+      renderer.render(scene, camera);
+    }
+
+    // Handle Viewport Resize
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    // Build initial preview maze in background & start loop on window load
+    window.onload = function () {
+      buildMazeScene(849201);
+      requestAnimationFrame(animate);
+    };
+  </script>
+</body>
+</html>
