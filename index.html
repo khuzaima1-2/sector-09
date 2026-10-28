@@ -1225,34 +1225,56 @@
     }
 
     /*************************************************************************
-     * 5. PROCEDURAL ARTICULATED HAZMAT OPERATIVE MODEL
-     * Uses CapsuleGeometry, BoxGeometry, CylinderGeometry.
-     * Bright Matte Yellow Hazmat Suit (#EAB308), dark grey visor faceplate,
-     * twin oxygen tanks on back, holding a flashlight/torch in right hand
-     * with real SpotLight + volumetric beam cone.
+     * 5. PROCEDURAL ARTICULATED HAZMAT OPERATIVE MODEL (LETHAL EMPLOY STYLE)
      *************************************************************************/
     function createHazmatCharacterMesh() {
       const root = new THREE.Group();
 
-      const yellowSuitMat = new THREE.MeshStandardMaterial({
-        color: 0xEAB308,
-        roughness: 0.72,
+      // Authentic Lethal Employ Scavenger Materials
+      const orangeSuitMat = new THREE.MeshStandardMaterial({
+        color: 0xEA580C, // Lethal Employ Hazmat Orange
+        roughness: 0.68,
         metalness: 0.08
       });
-      const darkTrimMat = new THREE.MeshStandardMaterial({
-        color: 0x1F2421,
-        roughness: 0.6,
-        metalness: 0.3
+      const suitSeamMat = new THREE.MeshStandardMaterial({
+        color: 0xC2410C,
+        roughness: 0.75,
+        metalness: 0.05
+      });
+      const strapMat = new THREE.MeshStandardMaterial({
+        color: 0x2B1810, // Dark Espresso Harness Straps & Belt
+        roughness: 0.85,
+        metalness: 0.05
+      });
+      const helmetMat = new THREE.MeshStandardMaterial({
+        color: 0x3F3D37, // Olive-Charcoal Industrial Helmet
+        roughness: 0.52,
+        metalness: 0.28
       });
       const visorMat = new THREE.MeshStandardMaterial({
-        color: 0x1E293B,
+        color: 0x475569, // Dark Slate Reflective Glass Visor
         roughness: 0.15,
-        metalness: 0.85
+        metalness: 0.88
       });
-      const tankMat = new THREE.MeshStandardMaterial({
-        color: 0x94A3B8,
-        roughness: 0.4,
-        metalness: 0.65
+      const rubberBlackMat = new THREE.MeshStandardMaterial({
+        color: 0x18191C, // Matte Black Gloves, Boots, Filters, Hoses & Tank Bottoms
+        roughness: 0.82,
+        metalness: 0.12
+      });
+      const tankYellowMat = new THREE.MeshStandardMaterial({
+        color: 0xC8C653, // Pale Sulfur Yellow Upper Oxygen Tanks
+        roughness: 0.42,
+        metalness: 0.22
+      });
+      const metalGreyMat = new THREE.MeshStandardMaterial({
+        color: 0x52565E, // Gunmetal Tank Bands, Bolts & Torch Barrel
+        roughness: 0.38,
+        metalness: 0.68
+      });
+      const bootTrimMat = new THREE.MeshStandardMaterial({
+        color: 0x574C44, // Brownish-Grey Boot Cuff Trim
+        roughness: 0.78,
+        metalness: 0.08
       });
 
       // Torso group (bobs slightly during walk cycle)
@@ -1260,107 +1282,335 @@
       bodyGroup.position.y = 0.95;
       root.add(bodyGroup);
 
-      // Main Hazmat Torso (CapsuleGeometry)
-      const torsoGeo = new THREE.CapsuleGeometry(0.26, 0.48, 8, 16);
-      const torsoMesh = new THREE.Mesh(torsoGeo, yellowSuitMat);
-      torsoMesh.castShadow = true;
-      torsoMesh.receiveShadow = true;
-      bodyGroup.add(torsoMesh);
+      // Upper Torso & Tapered Waist (Human Proportions instead of Pill)
+      const upperTorso = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.22, 0.185, 0.50, 14),
+        orangeSuitMat
+      );
+      upperTorso.scale.set(1.18, 1.0, 0.78);
+      upperTorso.position.set(0, 0.22, 0);
+      upperTorso.castShadow = true;
+      upperTorso.receiveShadow = true;
+      bodyGroup.add(upperTorso);
 
-      // Industrial Harness Belt (BoxGeometry)
-      const beltGeo = new THREE.BoxGeometry(0.54, 0.1, 0.46);
-      const beltMesh = new THREE.Mesh(beltGeo, darkTrimMat);
-      beltMesh.position.y = -0.22;
-      bodyGroup.add(beltMesh);
+      // Pelvis / Hips
+      const pelvis = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.185, 0.195, 0.22, 14),
+        orangeSuitMat
+      );
+      pelvis.scale.set(1.12, 1.0, 0.78);
+      pelvis.position.set(0, -0.12, 0);
+      pelvis.castShadow = true;
+      bodyGroup.add(pelvis);
 
-      // Head & Hood Assembly
+      // Dark Neck Seal Collar Ring
+      const neckCollar = new THREE.Mesh(
+        new THREE.TorusGeometry(0.135, 0.025, 10, 18),
+        rubberBlackMat
+      );
+      neckCollar.rotation.x = Math.PI / 2;
+      neckCollar.position.set(0, 0.47, 0);
+      bodyGroup.add(neckCollar);
+
+      // Left Chest Employee Badge (Yellow Border + Red Tag)
+      const badgePlate = new THREE.Mesh(
+        new THREE.BoxGeometry(0.085, 0.048, 0.015),
+        new THREE.MeshBasicMaterial({ color: 0xFACC15 })
+      );
+      badgePlate.position.set(-0.11, 0.33, -0.168);
+      bodyGroup.add(badgePlate);
+
+      const badgeInner = new THREE.Mesh(
+        new THREE.BoxGeometry(0.068, 0.026, 0.017),
+        new THREE.MeshBasicMaterial({ color: 0xB91C1C })
+      );
+      badgeInner.position.set(-0.11, 0.33, -0.170);
+      bodyGroup.add(badgeInner);
+
+      // Waist Utility Belt
+      const waistBelt = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.20, 0.20, 0.06, 14),
+        strapMat
+      );
+      waistBelt.scale.set(1.15, 1.0, 0.82);
+      waistBelt.position.set(0, -0.02, 0);
+      bodyGroup.add(waistBelt);
+
+      // Crossed X-Harness Straps on Front Chest & Shoulders
+      const frontStrap1 = new THREE.Mesh(
+        new THREE.BoxGeometry(0.052, 0.55, 0.025),
+        strapMat
+      );
+      frontStrap1.position.set(0, 0.22, -0.166);
+      frontStrap1.rotation.z = 0.62;
+      bodyGroup.add(frontStrap1);
+
+      const frontStrap2 = new THREE.Mesh(
+        new THREE.BoxGeometry(0.052, 0.55, 0.025),
+        strapMat
+      );
+      frontStrap2.position.set(0, 0.22, -0.170);
+      frontStrap2.rotation.z = -0.62;
+      bodyGroup.add(frontStrap2);
+
+      [-0.165, 0.165].forEach((sx) => {
+        const shoulderStrap = new THREE.Mesh(
+          new THREE.BoxGeometry(0.058, 0.035, 0.34),
+          strapMat
+        );
+        shoulderStrap.position.set(sx, 0.465, 0.01);
+        bodyGroup.add(shoulderStrap);
+      });
+
+      // --- HEAD, HELMET, DUAL RESPIRATOR FILTERS & HOSES ---
       const headPivot = new THREE.Group();
-      headPivot.position.set(0, 0.52, 0);
+      headPivot.position.set(0, 0.50, 0);
+      headPivot.rotation.order = 'YXZ';
       bodyGroup.add(headPivot);
 
-      const hoodGeo = new THREE.CapsuleGeometry(0.19, 0.12, 8, 16);
-      const hoodMesh = new THREE.Mesh(hoodGeo, yellowSuitMat);
-      hoodMesh.castShadow = true;
-      headPivot.add(hoodMesh);
+      // Squared Industrial Helmet Shell
+      const helmetShell = new THREE.Mesh(
+        new THREE.BoxGeometry(0.30, 0.30, 0.30),
+        helmetMat
+      );
+      helmetShell.position.set(0, 0.16, 0);
+      helmetShell.castShadow = true;
+      headPivot.add(helmetShell);
 
-      // Dark Grey Visor Faceplate (Faces -Z forward)
-      const visorGeo = new THREE.BoxGeometry(0.28, 0.18, 0.14);
-      const visorMesh = new THREE.Mesh(visorGeo, visorMat);
-      visorMesh.position.set(0, 0.02, -0.14);
-      headPivot.add(visorMesh);
+      // Rounded Helmet Crown Top
+      const helmetCrown = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.14, 0.15, 0.055, 12),
+        helmetMat
+      );
+      helmetCrown.position.set(0, 0.325, 0);
+      headPivot.add(helmetCrown);
 
-      // Twin Oxygen Tanks on Back (+Z side)
+      // Visor Bezel Frame + Dark Slate Faceplate (Faces -Z forward)
+      const visorBezel = new THREE.Mesh(
+        new THREE.BoxGeometry(0.26, 0.145, 0.04),
+        helmetMat
+      );
+      visorBezel.position.set(0, 0.185, -0.145);
+      headPivot.add(visorBezel);
+
+      const visorGlass = new THREE.Mesh(
+        new THREE.BoxGeometry(0.22, 0.11, 0.035),
+        visorMat
+      );
+      visorGlass.position.set(0, 0.185, -0.158);
+      headPivot.add(visorGlass);
+
+      // Side Ear Mounting Boxes + 2 Metallic Bolts + Curved Breathing Hoses
+      [-1, 1].forEach((side) => {
+        const earBox = new THREE.Mesh(
+          new THREE.BoxGeometry(0.042, 0.135, 0.125),
+          helmetMat
+        );
+        earBox.position.set(side * 0.162, 0.165, -0.015);
+        headPivot.add(earBox);
+
+        [0.20, 0.13].forEach((boltY) => {
+          const bolt = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.012, 0.012, 0.02, 8),
+            metalGreyMat
+          );
+          bolt.rotation.z = Math.PI / 2;
+          bolt.position.set(side * 0.18, boltY, -0.05);
+          headPivot.add(bolt);
+        });
+
+        // Corrugated Breathing Hose looping from side of helmet toward back tanks
+        const hose = new THREE.Mesh(
+          new THREE.TorusGeometry(0.09, 0.017, 8, 14, Math.PI * 1.15),
+          rubberBlackMat
+        );
+        hose.position.set(side * 0.14, 0.07, 0.06);
+        hose.rotation.y = side * 0.45;
+        hose.rotation.x = 0.35;
+        headPivot.add(hose);
+      });
+
+      // Twin Black Gas-Mask Respirator Canisters at Chin/Snout
+      [-0.065, 0.065].forEach((fx) => {
+        const filterCanister = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.054, 0.060, 0.075, 12),
+          rubberBlackMat
+        );
+        filterCanister.position.set(fx, 0.065, -0.17);
+        filterCanister.rotation.x = Math.PI / 2 + 0.32;
+        filterCanister.rotation.z = fx < 0 ? 0.25 : -0.25;
+        headPivot.add(filterCanister);
+      });
+
+      // --- TWIN BACK OXYGEN TANKS (YELLOW TOP / BLACK BASE / GREY BANDS / X-STRAPS) ---
       const backpackGroup = new THREE.Group();
-      backpackGroup.position.set(0, 0.08, 0.27);
+      backpackGroup.position.set(0, 0.21, 0.23);
       bodyGroup.add(backpackGroup);
 
-      const tankGeo = new THREE.CylinderGeometry(0.085, 0.085, 0.52, 12);
-      const leftTank = new THREE.Mesh(tankGeo, tankMat);
-      leftTank.position.x = -0.1;
-      leftTank.castShadow = true;
-      backpackGroup.add(leftTank);
+      [-0.098, 0.098].forEach((tx) => {
+        const tankUnit = new THREE.Group();
+        tankUnit.position.set(tx, 0, 0);
 
-      const rightTank = new THREE.Mesh(tankGeo, tankMat);
-      rightTank.position.x = 0.1;
-      rightTank.castShadow = true;
-      backpackGroup.add(rightTank);
+        // Upper Yellow Cylinder + Dome
+        const upperCyl = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.088, 0.088, 0.30, 14),
+          tankYellowMat
+        );
+        upperCyl.position.y = 0.06;
+        upperCyl.castShadow = true;
+        tankUnit.add(upperCyl);
 
-      const manifoldGeo = new THREE.BoxGeometry(0.28, 0.08, 0.12);
-      const manifold = new THREE.Mesh(manifoldGeo, darkTrimMat);
-      manifold.position.y = 0.27;
-      backpackGroup.add(manifold);
+        const topDome = new THREE.Mesh(
+          new THREE.SphereGeometry(0.088, 14, 10),
+          tankYellowMat
+        );
+        topDome.position.y = 0.21;
+        tankUnit.add(topDome);
 
-      // Subtle status beacon on oxygen pack so partner can spot silhouette from behind
-      const beaconGeo = new THREE.BoxGeometry(0.08, 0.04, 0.04);
-      const beaconMat = new THREE.MeshBasicMaterial({ color: 0xEAB308 });
-      const beacon = new THREE.Mesh(beaconGeo, beaconMat);
-      beacon.position.set(0, 0.27, 0.06);
-      backpackGroup.add(beacon);
+        // Lower Black Cylinder + Bottom Cap
+        const lowerCyl = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.089, 0.089, 0.15, 14),
+          rubberBlackMat
+        );
+        lowerCyl.position.y = -0.16;
+        tankUnit.add(lowerCyl);
 
-      // Articulated Left Arm
+        const bottomDome = new THREE.Mesh(
+          new THREE.SphereGeometry(0.088, 14, 10),
+          rubberBlackMat
+        );
+        bottomDome.position.y = -0.235;
+        tankUnit.add(bottomDome);
+
+        // Top Grey Valve Stem
+        const valve = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.026, 0.032, 0.07, 10),
+          metalGreyMat
+        );
+        valve.position.y = 0.31;
+        tankUnit.add(valve);
+
+        backpackGroup.add(tankUnit);
+      });
+
+      // 2 Horizontal Grey Metal Clamp Bands across both tanks
+      [0.12, -0.08].forEach((by) => {
+        const clampBand = new THREE.Mesh(
+          new THREE.BoxGeometry(0.39, 0.042, 0.19),
+          metalGreyMat
+        );
+        clampBand.position.set(0, by, 0);
+        backpackGroup.add(clampBand);
+      });
+
+      // Top Valve Manifold Bridge Bar
+      const manifoldBar = new THREE.Mesh(
+        new THREE.BoxGeometry(0.22, 0.022, 0.025),
+        metalGreyMat
+      );
+      manifoldBar.position.set(0, 0.32, 0);
+      backpackGroup.add(manifoldBar);
+
+      // Crossed Brown Harness Straps over Back Tanks
+      const backStrap1 = new THREE.Mesh(
+        new THREE.BoxGeometry(0.052, 0.54, 0.025),
+        strapMat
+      );
+      backStrap1.position.set(0, 0.01, 0.10);
+      backStrap1.rotation.z = 0.58;
+      backpackGroup.add(backStrap1);
+
+      const backStrap2 = new THREE.Mesh(
+        new THREE.BoxGeometry(0.052, 0.54, 0.025),
+        strapMat
+      );
+      backStrap2.position.set(0, 0.01, 0.105);
+      backStrap2.rotation.z = -0.58;
+      backpackGroup.add(backStrap2);
+
+      // --- ARTICULATED LEFT ARM & BLACK GLOVE ---
       const leftArmPivot = new THREE.Group();
-      leftArmPivot.position.set(-0.34, 0.2, 0);
+      leftArmPivot.position.set(-0.29, 0.40, 0);
       bodyGroup.add(leftArmPivot);
 
-      const armGeo = new THREE.CapsuleGeometry(0.085, 0.38, 6, 12);
-      const leftArmMesh = new THREE.Mesh(armGeo, yellowSuitMat);
-      leftArmMesh.position.y = -0.2;
-      leftArmMesh.castShadow = true;
-      leftArmPivot.add(leftArmMesh);
+      const leftUpperArm = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.074, 0.066, 0.27, 10),
+        orangeSuitMat
+      );
+      leftUpperArm.position.y = -0.13;
+      leftUpperArm.castShadow = true;
+      leftArmPivot.add(leftUpperArm);
 
-      // Articulated Right Arm (Holds Flashlight/Torch)
+      const leftForearm = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.066, 0.056, 0.25, 10),
+        orangeSuitMat
+      );
+      leftForearm.position.set(0, -0.37, -0.03);
+      leftForearm.rotation.x = 0.18;
+      leftForearm.castShadow = true;
+      leftArmPivot.add(leftForearm);
+
+      const leftGlove = new THREE.Mesh(
+        new THREE.BoxGeometry(0.09, 0.12, 0.10),
+        rubberBlackMat
+      );
+      leftGlove.position.set(0, -0.52, -0.06);
+      leftArmPivot.add(leftGlove);
+
+      // --- ARTICULATED RIGHT ARM, BLACK GLOVE & HORIZONTAL FORWARD TORCH ---
       const rightArmPivot = new THREE.Group();
-      rightArmPivot.position.set(0.34, 0.2, 0);
+      rightArmPivot.position.set(0.29, 0.40, 0);
+      rightArmPivot.rotation.order = 'YXZ';
       bodyGroup.add(rightArmPivot);
 
-      const rightArmMesh = new THREE.Mesh(armGeo, yellowSuitMat);
-      rightArmMesh.position.set(0, -0.14, -0.12);
-      rightArmMesh.rotation.x = Math.PI * 0.38; // Raised forward holding torch
-      rightArmMesh.castShadow = true;
-      rightArmPivot.add(rightArmMesh);
+      // Upper arm angles slightly forward to the elbow
+      const rightUpperArm = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.074, 0.066, 0.26, 10),
+        orangeSuitMat
+      );
+      rightUpperArm.position.set(0, -0.11, -0.05);
+      rightUpperArm.rotation.x = 0.42;
+      rightUpperArm.castShadow = true;
+      rightArmPivot.add(rightUpperArm);
 
-      // Heavy Industrial Flashlight / Torch in Right Hand
+      // Forearm bends forward at the elbow to hold the torch horizontally
+      const rightForearm = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.066, 0.056, 0.25, 10),
+        orangeSuitMat
+      );
+      rightForearm.position.set(0, -0.24, -0.20);
+      rightForearm.rotation.x = 1.22;
+      rightForearm.castShadow = true;
+      rightArmPivot.add(rightForearm);
+
+      const rightGlove = new THREE.Mesh(
+        new THREE.BoxGeometry(0.095, 0.095, 0.11),
+        rubberBlackMat
+      );
+      rightGlove.position.set(0, -0.28, -0.34);
+      rightArmPivot.add(rightGlove);
+
+      // Heavy Industrial Flashlight / Torch in Right Hand (Points straight along -Z)
       const torchGroup = new THREE.Group();
-      torchGroup.position.set(0, -0.26, -0.34);
+      torchGroup.position.set(0, -0.28, -0.38);
       rightArmPivot.add(torchGroup);
 
-      const torchBodyGeo = new THREE.CylinderGeometry(0.045, 0.038, 0.28, 12);
+      const torchBodyGeo = new THREE.CylinderGeometry(0.044, 0.036, 0.26, 12);
       torchBodyGeo.rotateX(Math.PI / 2);
-      const torchBody = new THREE.Mesh(torchBodyGeo, darkTrimMat);
+      const torchBody = new THREE.Mesh(torchBodyGeo, metalGreyMat);
       torchGroup.add(torchBody);
 
-      const lensGeo = new THREE.CylinderGeometry(0.048, 0.048, 0.02, 12);
+      const lensGeo = new THREE.CylinderGeometry(0.046, 0.046, 0.02, 12);
       lensGeo.rotateX(Math.PI / 2);
       const lensMat = new THREE.MeshBasicMaterial({ color: 0xFFFBEB });
       const lensMesh = new THREE.Mesh(lensGeo, lensMat);
-      lensMesh.position.z = -0.145;
+      lensMesh.position.z = -0.135;
       torchGroup.add(lensMesh);
 
-      // Volumetric Flashlight Cone Mesh so Partner sees beam slicing through the dark
+      // Volumetric Flashlight Cone Mesh pointing straight ahead (-Z)
       const coneLength = 9.5;
       const coneRadius = 2.6;
       const coneGeo = new THREE.ConeGeometry(coneRadius, coneLength, 24, 1, true);
-      // Orient cone so tip is at origin (0,0,0) and beam extends toward -Z
       coneGeo.translate(0, -coneLength / 2, 0);
       coneGeo.rotateX(Math.PI / 2);
 
@@ -1373,12 +1623,12 @@
         blending: THREE.AdditiveBlending
       });
       const beamCone = new THREE.Mesh(coneGeo, coneMat);
-      beamCone.position.set(0, 0, -0.15);
+      beamCone.position.set(0, 0, -0.14);
       torchGroup.add(beamCone);
 
-      // Real Three.js SpotLight attached to Remote Player's Torch
+      // Real Three.js SpotLight attached to Remote Player's Torch pointing straight ahead (-Z)
       const remoteSpotLight = new THREE.SpotLight(0xFFFBEB, 2.8, 28, Math.PI / 4.2, 0.55, 1.4);
-      remoteSpotLight.position.set(0, 0, -0.15);
+      remoteSpotLight.position.set(0, 0, -0.14);
       remoteSpotLight.castShadow = true;
       remoteSpotLight.shadow.mapSize.width = 512;
       remoteSpotLight.shadow.mapSize.height = 512;
@@ -1396,34 +1646,55 @@
       suitGlow.position.set(0, 0.2, -0.35);
       bodyGroup.add(suitGlow);
 
-      // Articulated Left & Right Legs
-      const leftLegPivot = new THREE.Group();
-      leftLegPivot.position.set(-0.14, 0.65, 0);
+      // --- ARTICULATED LEGS, KNEE SEAMS, BOOT CUFFS & BLACK WORK BOOTS ---
+      function buildLeg(xOffset) {
+        const legPivot = new THREE.Group();
+        legPivot.position.set(xOffset, 0.72, 0);
+
+        const thigh = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.092, 0.080, 0.32, 12),
+          orangeSuitMat
+        );
+        thigh.position.y = -0.16;
+        thigh.castShadow = true;
+        legPivot.add(thigh);
+
+        const kneeSeam = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.082, 0.082, 0.038, 12),
+          suitSeamMat
+        );
+        kneeSeam.position.y = -0.32;
+        legPivot.add(kneeSeam);
+
+        const shin = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.080, 0.070, 0.26, 12),
+          orangeSuitMat
+        );
+        shin.position.y = -0.45;
+        shin.castShadow = true;
+        legPivot.add(shin);
+
+        const bootCuff = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.080, 0.078, 0.05, 12),
+          bootTrimMat
+        );
+        bootCuff.position.y = -0.57;
+        legPivot.add(bootCuff);
+
+        const boot = new THREE.Mesh(
+          new THREE.BoxGeometry(0.15, 0.12, 0.25),
+          rubberBlackMat
+        );
+        boot.position.set(0, -0.65, -0.035);
+        legPivot.add(boot);
+
+        return legPivot;
+      }
+
+      const leftLegPivot = buildLeg(-0.115);
+      const rightLegPivot = buildLeg(0.115);
       root.add(leftLegPivot);
-
-      const legGeo = new THREE.CapsuleGeometry(0.095, 0.42, 6, 12);
-      const leftLegMesh = new THREE.Mesh(legGeo, yellowSuitMat);
-      leftLegMesh.position.y = -0.26;
-      leftLegMesh.castShadow = true;
-      leftLegPivot.add(leftLegMesh);
-
-      const bootGeo = new THREE.BoxGeometry(0.18, 0.12, 0.26);
-      const leftBoot = new THREE.Mesh(bootGeo, darkTrimMat);
-      leftBoot.position.set(0, -0.54, -0.03);
-      leftLegPivot.add(leftBoot);
-
-      const rightLegPivot = new THREE.Group();
-      rightLegPivot.position.set(0.14, 0.65, 0);
       root.add(rightLegPivot);
-
-      const rightLegMesh = new THREE.Mesh(legGeo, yellowSuitMat);
-      rightLegMesh.position.y = -0.26;
-      rightLegMesh.castShadow = true;
-      rightLegPivot.add(rightLegMesh);
-
-      const rightBoot = new THREE.Mesh(bootGeo, darkTrimMat);
-      rightBoot.position.set(0, -0.54, -0.03);
-      rightLegPivot.add(rightBoot);
 
       root.userData = {
         bodyGroup,
@@ -2291,13 +2562,44 @@
     /*************************************************************************
      * 10. POINTER LOCK FIRST-PERSON CONTROLS & INTERACTION HANDLER
      *************************************************************************/
+    let isMouseDraggingFallback = false;
+
     function requestPointerLock() {
       sound.init();
+      if (document.activeElement && document.activeElement !== document.body) {
+        document.activeElement.blur();
+      }
+      window.focus();
       const el = renderer.domElement;
-      if (el.requestPointerLock) {
-        el.requestPointerLock();
+      if (el && el.requestPointerLock && document.pointerLockElement !== el) {
+        try {
+          const lockPromise = el.requestPointerLock();
+          if (lockPromise && typeof lockPromise.catch === 'function') {
+            lockPromise.catch(() => {});
+          }
+        } catch (err) {}
       }
     }
+
+    // Allow Client (Player 2) or Host to lock cursor immediately by clicking anywhere on the 3D viewport
+    renderer.domElement.addEventListener('mousedown', (e) => {
+      if (!state.matchActive || state.matchEnded) return;
+      isMouseDraggingFallback = true;
+      if (document.pointerLockElement !== renderer.domElement) {
+        requestPointerLock();
+      }
+    });
+
+    window.addEventListener('mouseup', () => {
+      isMouseDraggingFallback = false;
+    });
+
+    renderer.domElement.addEventListener('click', () => {
+      if (!state.matchActive || state.matchEnded) return;
+      if (document.pointerLockElement !== renderer.domElement) {
+        requestPointerLock();
+      }
+    });
 
     document.addEventListener('pointerlockchange', () => {
       if (!state.matchActive || state.matchEnded) return;
@@ -2314,12 +2616,14 @@
     });
 
     ui.btnResume.addEventListener('click', () => {
+      ui.pauseOverlay.classList.add('hidden');
       requestPointerLock();
     });
 
     document.addEventListener('mousemove', (e) => {
       if (!state.matchActive || state.matchEnded) return;
-      if (document.pointerLockElement !== renderer.domElement) return;
+      const isLocked = document.pointerLockElement === renderer.domElement;
+      if (!isLocked && !isMouseDraggingFallback) return;
 
       const sensitivity = 0.0021;
       state.playerYaw -= e.movementX * sensitivity;
@@ -2705,19 +3009,55 @@
         // 3. Update Solo Practice Bot if enabled
         updateSoloBrotherBot(dt);
 
-        // 4. Smooth 60+ FPS Linear Interpolation (Lerp) & Quaternion Slerp for Remote Player
+        // 4. Smooth 60+ FPS Linear Interpolation + 180° Sideways Head Turn Before Body Rotation
         const lerpAlpha = Math.min(1.0, dt * 15.0);
         state.remoteCurrentPos.lerp(state.remoteTargetPos, lerpAlpha);
-        state.remoteCurrentQuat.slerp(state.remoteTargetQuat, lerpAlpha);
         state.remoteCurrentPitch += (state.remoteTargetPitch - state.remoteCurrentPitch) * lerpAlpha;
 
-        remotePlayerMesh.position.copy(state.remoteCurrentPos);
-        remotePlayerMesh.quaternion.copy(state.remoteCurrentQuat);
+        // Extract target look yaw from remoteTargetQuat and shortest-path interpolate
+        const q = state.remoteTargetQuat;
+        const targetLookYaw = Math.atan2(2 * (q.w * q.y + q.x * q.z), 1 - 2 * (q.y * q.y + q.z * q.z));
 
-        // Update Remote Player Articulated Walk Cycle & Head/Torch Pitch
+        if (state.remoteLookYaw === undefined) {
+          state.remoteLookYaw = targetLookYaw;
+          state.remoteBodyYaw = targetLookYaw;
+        }
+
+        const wrapAngle = (a) => Math.atan2(Math.sin(a), Math.cos(a));
+        const lookDelta = wrapAngle(targetLookYaw - state.remoteLookYaw);
+        state.remoteLookYaw = wrapAngle(state.remoteLookYaw + lookDelta * lerpAlpha);
+
+        // 180° Sideways Head Movement Logic:
+        // Only the head turns sideways up to ±85° (~170°-180° total arc).
+        // Once that angle is reached, the body starts rotating along with the head.
+        const MAX_HEAD_SIDE_YAW = THREE.MathUtils.degToRad(85);
+        let headYawOffset = wrapAngle(state.remoteLookYaw - state.remoteBodyYaw);
+
+        if (Math.abs(headYawOffset) > MAX_HEAD_SIDE_YAW) {
+          const overflow = headYawOffset - Math.sign(headYawOffset) * MAX_HEAD_SIDE_YAW;
+          state.remoteBodyYaw = wrapAngle(state.remoteBodyYaw + overflow);
+          headYawOffset = wrapAngle(state.remoteLookYaw - state.remoteBodyYaw);
+        }
+
+        // When walking, smoothly realign the torso toward the look direction
+        if (state.remoteMoving) {
+          const alignAlpha = Math.min(1.0, dt * 6.5);
+          state.remoteBodyYaw = wrapAngle(state.remoteBodyYaw + headYawOffset * alignAlpha);
+          headYawOffset = wrapAngle(state.remoteLookYaw - state.remoteBodyYaw);
+        }
+
+        remotePlayerMesh.position.copy(state.remoteCurrentPos);
+        remotePlayerMesh.rotation.set(0, state.remoteBodyYaw, 0);
+
+        // Update Remote Player Head (Pitch Nod + 180° Sideways Yaw) & Forward Torch Aim
         const rData = remotePlayerMesh.userData;
         rData.headPivot.rotation.x = state.remoteCurrentPitch;
-        rData.torchGroup.rotation.x = state.remoteCurrentPitch - Math.PI * 0.38;
+        rData.headPivot.rotation.y = headYawOffset;
+
+        // Aim Right Arm & Flashlight horizontally + vertically with look direction (no downward offset!)
+        rData.rightArmPivot.rotation.x = state.remoteCurrentPitch;
+        rData.rightArmPivot.rotation.y = headYawOffset * 0.55;
+        rData.torchGroup.rotation.set(0, 0, 0);
 
         // Remote Torch Visibility
         rData.remoteSpotLight.visible = state.remoteTorchOn;
@@ -2752,13 +3092,6 @@
           rData.leftArmPivot.rotation.x *= 0.85;
           rData.bodyGroup.position.y = 0.95;
         }
-
-        // Update Partner Distance Telemetry
-        const distToPartner = Math.hypot(
-          state.playerPos.x - state.remoteCurrentPos.x,
-          state.playerPos.z - state.remoteCurrentPos.z
-        );
-        ui.hudCoopDist.textContent = `PARTNER: ${distToPartner.toFixed(1)} M`;
 
         // 5. Rotate Floating Key Cylinders
         if (keyAlphaMeshGroup && keyAlphaMeshGroup.visible) {
