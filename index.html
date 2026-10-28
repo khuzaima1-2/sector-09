@@ -357,12 +357,10 @@
 
   <style>
     :root {
-      --bg-charcoal: #111111;
-      --fg-offwhite: #F4F4F0;
+      --bg-dark: #111111;
+      --fg-white: #FFFFFF;
       --accent-yellow: #EAB308;
-      --alert-red: #DC2626;
-      --border-muted: #292929;
-      --text-muted: #888884;
+      --alert-red: #EF4444;
     }
 
     * {
@@ -377,13 +375,10 @@
       width: 100%;
       height: 100%;
       overflow: hidden;
-      background-color: var(--bg-charcoal);
-      color: var(--fg-offwhite);
+      background-color: var(--bg-dark);
+      color: var(--fg-white);
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-    }
-
-    .font-mono-tech {
-      font-family: 'JetBrains Mono', monospace;
+      font-weight: 700;
     }
 
     #canvas-container {
@@ -400,7 +395,15 @@
       height: 100%;
     }
 
-    /* Minimalist HUD Layer */
+    /* Lobby Background Image from Root Folder */
+    #lobby-overlay {
+      background:
+        linear-gradient(rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0.78)),
+        url('background.jpg') center center / cover no-repeat,
+        #111111;
+    }
+
+    /* In-Game HUD Layer */
     #hud-layer {
       position: fixed;
       inset: 0;
@@ -410,71 +413,90 @@
     }
 
     .hud-shadow {
-      text-shadow: 0 2px 6px rgba(0, 0, 0, 0.95), 0 0 2px rgba(0, 0, 0, 1);
+      text-shadow: 0 3px 10px rgba(0, 0, 0, 0.95), 0 0 4px rgba(0, 0, 0, 1);
     }
 
-    /* Center 2px Reticle */
+    /* Center Reticle */
     #reticle {
       position: absolute;
       top: 50%;
       left: 50%;
-      width: 3px;
-      height: 3px;
-      background-color: var(--fg-offwhite);
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background-color: #FFFFFF;
       transform: translate(-50%, -50%);
-      opacity: 0.85;
+      box-shadow: 0 0 4px #000000;
     }
 
-    /* Contextual Prompt below Reticle */
+    /* Bold Interaction Text below Reticle */
     #interaction-prompt {
       position: absolute;
-      top: calc(50% + 18px);
+      top: calc(50% + 22px);
       left: 50%;
       transform: translateX(-50%);
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 11px;
-      letter-spacing: 0.14em;
+      font-size: 18px;
+      font-weight: 800;
+      letter-spacing: 0.04em;
       text-transform: uppercase;
       white-space: nowrap;
-      text-shadow: 0 1px 4px rgba(0, 0, 0, 0.95);
+      text-shadow: 0 2px 8px rgba(0, 0, 0, 0.95);
       transition: opacity 0.12s ease;
     }
 
-    /* Utilitarian Button Styling */
-    .btn-industrial {
-      background-color: #1A1A1A;
-      color: var(--fg-offwhite);
-      border: 1px solid #333333;
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 11px;
-      letter-spacing: 0.14em;
-      text-transform: uppercase;
-      padding: 12px 18px;
+    /* Main Menu Big Bold Buttons */
+    .btn-menu {
+      width: 100%;
+      background-color: rgba(20, 20, 20, 0.88);
+      color: #FFFFFF;
+      border: 2px solid rgba(255, 255, 255, 0.22);
+      font-size: 20px;
+      font-weight: 800;
+      padding: 16px 24px;
+      border-radius: 8px;
       cursor: pointer;
-      transition: background-color 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+      text-align: center;
+      transition: transform 0.1s ease, background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+    }
+
+    .btn-menu:hover:not(:disabled) {
+      background-color: var(--accent-yellow);
+      color: #000000;
+      border-color: var(--accent-yellow);
+      transform: scale(1.02);
+    }
+
+    .btn-industrial {
+      background-color: rgba(25, 25, 25, 0.9);
+      color: #FFFFFF;
+      border: 2px solid rgba(255, 255, 255, 0.25);
+      font-size: 16px;
+      font-weight: 800;
+      padding: 14px 20px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background-color 0.12s ease, color 0.12s ease, border-color 0.12s ease;
     }
 
     .btn-industrial:hover:not(:disabled) {
-      background-color: var(--fg-offwhite);
-      color: var(--bg-charcoal);
-      border-color: var(--fg-offwhite);
+      background-color: #FFFFFF;
+      color: #000000;
+      border-color: #FFFFFF;
     }
 
     .btn-industrial:disabled {
-      opacity: 0.35;
+      opacity: 0.4;
       cursor: not-allowed;
     }
 
     .btn-hazard {
       background-color: var(--accent-yellow);
-      color: var(--bg-charcoal);
-      border: 1px solid var(--accent-yellow);
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 0.14em;
-      text-transform: uppercase;
-      padding: 12px 20px;
+      color: #000000;
+      border: 2px solid var(--accent-yellow);
+      font-size: 18px;
+      font-weight: 900;
+      padding: 15px 22px;
+      border-radius: 8px;
       cursor: pointer;
       transition: background-color 0.12s ease, opacity 0.12s ease;
     }
@@ -484,19 +506,21 @@
     }
 
     .btn-hazard:disabled {
-      opacity: 0.35;
+      opacity: 0.4;
       cursor: not-allowed;
     }
 
     .input-industrial {
-      background-color: #0B0B0B;
-      border: 1px solid #333333;
-      color: var(--fg-offwhite);
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 15px;
-      letter-spacing: 0.25em;
+      background-color: #0D0D0D;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      color: #FFFFFF;
+      font-size: 24px;
+      font-weight: 900;
+      letter-spacing: 0.2em;
+      text-align: center;
       text-transform: uppercase;
-      padding: 11px 14px;
+      padding: 14px;
+      border-radius: 8px;
       outline: none;
     }
 
@@ -504,7 +528,13 @@
       border-color: var(--accent-yellow);
     }
 
-    /* Subtle Vignette for Subterranean Atmosphere */
+    .menu-card {
+      background-color: rgba(15, 15, 15, 0.9);
+      border: 2px solid rgba(255, 255, 255, 0.15);
+      border-radius: 12px;
+      backdrop-filter: blur(8px);
+    }
+
     #vignette {
       position: fixed;
       inset: 0;
@@ -520,227 +550,188 @@
   <div id="canvas-container"></div>
   <div id="vignette"></div>
 
-  <!-- Minimalist In-Game HUD -->
+ <!-- Clean, Bold In-Game HUD -->
   <div id="hud-layer">
-    <!-- Top Center: Stark Countdown Timer -->
-    <div class="absolute top-7 left-1/2 -translate-x-1/2 text-center">
-      <div id="hud-timer" class="font-mono-tech text-3xl font-semibold tracking-[0.2em] text-[#F4F4F0] hud-shadow">
+    <!-- Top Center: Big Bold Countdown Timer -->
+    <div class="absolute top-6 left-1/2 -translate-x-1/2 text-center">
+      <div id="hud-timer" class="text-5xl font-black tracking-wider text-white hud-shadow">
         05:00
       </div>
-      <div id="hud-substatus" class="font-mono-tech text-[10px] tracking-[0.22em] text-[#888884] uppercase mt-1 hud-shadow">
-        SECTOR 09 // CONTAINMENT ACTIVE
-      </div>
+      <div id="hud-substatus" class="hidden"></div>
     </div>
 
-    <!-- Top Right: Minimal Network Telemetry -->
-    <div class="absolute top-7 right-8 text-right font-mono-tech text-[11px] tracking-[0.14em] text-[#888884] hud-shadow space-y-1">
-      <div id="hud-net-role">ROLE: HOST</div>
+    <!-- Top Right: Simple Ping & Distance -->
+    <div class="absolute top-6 right-8 text-right text-sm font-extrabold text-white/80 hud-shadow space-y-1">
+      <div id="hud-net-role" class="hidden"></div>
       <div id="hud-ping">PING: -- MS</div>
       <div id="hud-coop-dist">PARTNER: -- M</div>
     </div>
 
-    <!-- Center Screen: 2px White Reticle & Contextual Prompt -->
+    <!-- Center Screen: Reticle & Bold Prompt -->
     <div id="reticle"></div>
-    <div id="interaction-prompt" class="opacity-0 text-[#F4F4F0]"></div>
+    <div id="interaction-prompt" class="opacity-0 text-white"></div>
 
-    <!-- Bottom Left: Minimal Status Indicator -->
-    <div class="absolute bottom-7 left-8 font-mono-tech text-xs tracking-[0.15em] space-y-1.5 hud-shadow">
-      <div id="hud-key-status" class="text-[#F4F4F0]">[KEY: NONE]</div>
-      <div id="hud-door-status" class="text-[#F4F4F0]">[DOOR LOCKS: 0/2]</div>
-      <div id="hud-torch-status" class="text-[#888884] text-[10px] pt-1">[F] TORCH: ON // [SHIFT] SPRINT // [E] INTERACT</div>
-      <div id="hud-practice-hint" class="hidden text-[#EAB308] text-[10px]">[B] DISPATCH BROTHER BOT (SOLO TEST MODE)</div>
+    <!-- Bottom Left: Bold Key & Door Status -->
+    <div class="absolute bottom-7 left-8 space-y-1 hud-shadow">
+      <div id="hud-key-status" class="text-2xl font-black text-white">[KEY: NONE]</div>
+      <div id="hud-door-status" class="text-xl font-extrabold text-white/90">[DOOR LOCKS: 0/2]</div>
+      <div id="hud-torch-status" class="text-sm font-bold text-white/70 pt-1">[F] Flashlight &bull; [Shift] Sprint &bull; [E] Use</div>
+      <div id="hud-practice-hint" class="hidden text-yellow-400 text-sm font-extrabold">[B] Spawn Bot Partner</div>
     </div>
 
-    <!-- Bottom Right: Extraction Zone Co-op Presence Indicator -->
-    <div id="hud-extraction-zone" class="hidden absolute bottom-7 right-8 font-mono-tech text-xs tracking-[0.15em] text-right hud-shadow">
-      <div class="text-[#EAB308]">[EXTRACTION ZONE PRESENCE: <span id="hud-zone-count">0/2</span>]</div>
-      <div class="text-[10px] text-[#888884] mt-0.5">BOTH OPERATIVES REQUIRED AT PERIMETER BLAST DOOR</div>
-    </div>
-  </div>
-
-  <!-- Pause / Pointer Lock Resume Overlay -->
-  <div id="pause-overlay" class="hidden fixed inset-0 z-20 bg-[#111111]/85 flex flex-col items-center justify-center p-6">
-    <div class="w-full max-w-md border border-[#292929] bg-[#111111] p-8">
-      <div class="font-mono-tech text-[10px] tracking-[0.22em] text-[#888884] uppercase mb-2">SYSTEM PAUSED</div>
-      <h2 class="font-mono-tech text-lg tracking-[0.16em] text-[#F4F4F0] uppercase font-semibold mb-4">CONTROL LINK SUSPENDED</h2>
-      <p class="text-xs text-[#888884] leading-relaxed mb-6">
-        Simulation clock and network telemetry remain active in the background. Click below to re-engage first-person visor lock.
-      </p>
-      <div class="flex flex-col gap-3">
-        <button id="btn-resume" class="btn-hazard w-full">RE-ENGAGE VISOR LOCK</button>
-      </div>
+    <!-- Bottom Right: Escape Door Zone -->
+    <div id="hud-extraction-zone" class="hidden absolute bottom-7 right-8 text-right hud-shadow">
+      <div class="text-2xl font-black text-yellow-400">PLAYERS AT DOOR: <span id="hud-zone-count">0/2</span></div>
+      <div class="text-sm font-bold text-white/80">Both players must stand at the exit door</div>
     </div>
   </div>
 
-  <!-- Lobby Overlay (Matte Charcoal Utilitarian Screen) -->
-  <div id="lobby-overlay" class="fixed inset-0 z-30 bg-[#111111] flex flex-col justify-between p-6 md:p-12 overflow-y-auto">
-    <!-- Top Header Bar -->
-    <div class="flex flex-col sm:flex-row sm:items-center justify-between border-b border-[#292929] pb-5 gap-4">
-      <div>
-        <div class="font-mono-tech text-[10px] tracking-[0.25em] text-[#EAB308] uppercase">
-          DEPARTMENT OF SUBTERRANEAN CONTAINMENT // P2P WEBRTC LINK
-        </div>
-        <h1 class="font-mono-tech text-xl md:text-2xl font-semibold tracking-[0.15em] text-[#F4F4F0] uppercase mt-1">
-          SECTOR 09 // DUAL-KEY EXTRACTION
-        </h1>
-      </div>
-      <div class="flex items-center gap-6 font-mono-tech text-xs tracking-[0.15em]">
-        <div>
-          <span class="text-[#888884]">LINK STATE: </span>
-          <span id="lobby-link-state" class="text-[#F4F4F0]">STANDBY</span>
-        </div>
-        <div>
-          <span class="text-[#888884]">LATENCY: </span>
-          <span id="lobby-ping" class="text-[#F4F4F0]">-- MS</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- Center Session Grid -->
-    <div class="my-auto py-8 w-full max-w-4xl mx-auto">
-      <!-- Mode Selector Tabs -->
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-
-        <!-- Left Column: CREATE SESSION (HOST) -->
-        <div class="border border-[#292929] bg-[#141414] p-6 md:p-8 flex flex-col justify-between">
-          <div>
-            <div class="flex items-center justify-between mb-4">
-              <span class="font-mono-tech text-[10px] tracking-[0.2em] text-[#888884] uppercase">OPERATIVE 01 // HOST</span>
-              <span class="font-mono-tech text-[10px] tracking-[0.2em] text-[#EAB308] uppercase">AUTHORITATIVE CLOCK</span>
-            </div>
-            <h2 class="font-mono-tech text-base font-semibold tracking-[0.14em] text-[#F4F4F0] uppercase mb-2">
-              CREATE SESSION
-            </h2>
-            <p class="text-xs text-[#888884] leading-relaxed mb-6">
-              Initialize a deterministic maze seed and generate a 5-character tactical room code for your brother to connect directly via WebRTC.
-            </p>
-
-            <button id="btn-create-session" class="btn-industrial w-full mb-6">
-              GENERATE ROOM CODE
-            </button>
-
-            <!-- Host Room Code Readout -->
-            <div id="host-code-panel" class="hidden border border-[#292929] bg-[#0B0B0B] p-4 mb-6">
-              <div class="font-mono-tech text-[10px] tracking-[0.2em] text-[#888884] uppercase mb-1">
-                SESSION ACCESS CODE
-              </div>
-              <div class="flex items-center justify-between gap-3">
-                <div id="host-room-code" class="font-mono-tech text-2xl font-bold tracking-[0.3em] text-[#EAB308]">
-                  -----
-                </div>
-                <button id="btn-copy-code" class="btn-industrial py-2 px-3 text-[10px]">
-                  COPY CODE
-                </button>
-              </div>
-              <div id="host-wait-status" class="font-mono-tech text-[10px] tracking-[0.15em] text-[#888884] uppercase mt-3">
-                AWAITING OPERATIVE 02 CONNECTION...
-              </div>
-            </div>
-          </div>
-
-          <div class="pt-4 border-t border-[#222222] space-y-2.5">
-            <button id="btn-start-expedition" class="btn-hazard w-full" disabled>
-              START EXPEDITION (AWAITING PARTNER)
-            </button>
-            <button id="btn-solo-practice" class="btn-industrial w-full">
-              SOLO TEST EXPEDITION (IMMEDIATE)
-            </button>
-          </div>
-        </div>
-
-        <!-- Right Column: JOIN SESSION (CLIENT) -->
-        <div class="border border-[#292929] bg-[#141414] p-6 md:p-8 flex flex-col justify-between">
-          <div>
-            <div class="flex items-center justify-between mb-4">
-              <span class="font-mono-tech text-[10px] tracking-[0.2em] text-[#888884] uppercase">OPERATIVE 02 // CLIENT</span>
-              <span class="font-mono-tech text-[10px] tracking-[0.2em] text-[#888884] uppercase">P2P DATACHANNEL</span>
-            </div>
-            <h2 class="font-mono-tech text-base font-semibold tracking-[0.14em] text-[#F4F4F0] uppercase mb-2">
-              JOIN SESSION
-            </h2>
-            <p class="text-xs text-[#888884] leading-relaxed mb-6">
-              Enter the 5-character room code generated by Operative 01 to synchronize the maze seed and establish a direct zero-latency peer link.
-            </p>
-
-            <div class="mb-4">
-              <label for="input-join-code" class="block font-mono-tech text-[10px] tracking-[0.2em] text-[#888884] uppercase mb-2">
-                ENTER 5-CHARACTER ROOM CODE
-              </label>
-              <input
-                id="input-join-code"
-                type="text"
-                maxlength="5"
-                placeholder="X7K9M"
-                class="input-industrial w-full"
-                autocomplete="off"
-                spellcheck="false"
-              />
-            </div>
-
-            <button id="btn-join-session" class="btn-industrial w-full mb-6">
-              CONNECT TO HOST
-            </button>
-          </div>
-
-          <!-- Operational Briefing Rules -->
-          <div class="border border-[#222222] bg-[#0E0E0E] p-4">
-            <div class="font-mono-tech text-[10px] tracking-[0.2em] text-[#EAB308] uppercase mb-2">
-              CO-OP EXTRACTION PROTOCOL
-            </div>
-            <ul class="font-mono-tech text-[11px] text-[#888884] space-y-1.5 leading-relaxed">
-              <li>01. TWO KEYS SPAWN IN FAR SECTORS: ALPHA (AMBER) &amp; BETA (WHITE).</li>
-              <li>02. INVENTORY LIMIT: STRICTLY 1 KEY PER OPERATIVE.</li>
-              <li>03. BOTH KEYS MUST BE INSERTED INTO THE PERIMETER BLAST DOOR.</li>
-              <li>04. BOTH OPERATIVES MUST STAND IN THE ESCAPE ZONE BEFORE 00:00.</li>
-            </ul>
-          </div>
-        </div>
-
-      </div>
-
-      <!-- Status Log Bar -->
-      <div class="mt-6 border border-[#292929] bg-[#0B0B0B] px-5 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-        <div class="font-mono-tech text-[11px] tracking-[0.14em] text-[#F4F4F0]" id="lobby-log">
-          SYSTEM READY. SELECT CREATE SESSION OR JOIN SESSION.
-        </div>
-        <div class="font-mono-tech text-[10px] tracking-[0.14em] text-[#888884]">
-          TICK RATE: 25HZ (40MS) // PRNG: MULBERRY32
-        </div>
-      </div>
-    </div>
-
-    <!-- Bottom Footer -->
-    <div class="border-t border-[#292929] pt-4 flex flex-col sm:flex-row items-center justify-between text-[11px] font-mono-tech tracking-[0.14em] text-[#888884] gap-2">
-      <div>CONTROLS: [WASD] MOVE // [MOUSE] LOOK // [SHIFT] SPRINT // [E] INTERACT // [F] TORCH</div>
-      <div>RENDERER: THREE.INSTANCEDMESH // ZERO EXTERNAL ASSETS</div>
+  <!-- Simple Pause Overlay: Just Click to Play -->
+  <div id="pause-overlay" class="hidden fixed inset-0 z-20 bg-black/80 flex flex-col items-center justify-center p-6 cursor-pointer">
+    <div class="menu-card w-full max-w-sm p-8 text-center">
+      <h2 class="text-4xl font-black text-white uppercase mb-6">PAUSED</h2>
+      <button id="btn-resume" class="btn-hazard w-full text-xl py-4">CLICK TO PLAY</button>
     </div>
   </div>
 
-  <!-- End-State Modal (ESCAPED / CONTAINMENT SEALED) -->
-  <div id="endgame-overlay" class="hidden fixed inset-0 z-40 bg-[#111111]/95 flex flex-col items-center justify-center p-6">
-    <div class="w-full max-w-lg border border-[#292929] bg-[#141414] p-8 md:p-10">
-      <div id="endgame-tag" class="font-mono-tech text-[11px] tracking-[0.25em] text-[#EAB308] uppercase mb-2">
-        EXPEDITION REPORT
+  <!-- Main Menu Lobby Overlay (Uses background.jpg automatically) -->
+  <div id="lobby-overlay" class="fixed inset-0 z-30 flex flex-col items-center justify-center p-6 overflow-y-auto">
+    <div class="w-full max-w-md my-auto text-center">
+
+      <!-- Main Game Title -->
+      <h1 class="text-6xl md:text-7xl font-black tracking-tight text-white uppercase mb-8 hud-shadow">
+        SECTOR-09
+      </h1>
+
+      <!-- VIEW 1: Main Menu Buttons -->
+      <div id="menu-main-view" class="flex flex-col gap-4">
+        <button id="nav-create-room" class="btn-menu">Create room</button>
+        <button id="nav-join-room" class="btn-menu">Join room</button>
+        <button id="nav-how-to-play" class="btn-menu">How to play</button>
+        <button id="nav-credits" class="btn-menu">Credits</button>
       </div>
-      <h2 id="endgame-title" class="font-mono-tech text-2xl md:text-3xl font-bold tracking-[0.16em] text-[#F4F4F0] uppercase mb-4">
-        ESCAPED
+
+      <!-- VIEW 2: Create Room Panel -->
+      <div id="menu-create-view" class="hidden menu-card p-7 text-left">
+        <h2 class="text-2xl font-black text-white uppercase mb-2">Create Room</h2>
+        <p class="text-sm font-semibold text-white/70 mb-5">
+          Share your room code with Player 2 so they can join your game.
+        </p>
+
+        <button id="btn-create-session" class="btn-industrial w-full mb-4">
+          Generate Room Code
+        </button>
+
+        <div id="host-code-panel" class="hidden bg-black/80 border-2 border-white/20 rounded-lg p-4 mb-5 text-center">
+          <div class="text-xs font-bold text-white/60 uppercase mb-1">Room Code</div>
+          <div id="host-room-code" class="text-4xl font-black tracking-widest text-yellow-400 my-2">
+            -----
+          </div>
+          <button id="btn-copy-code" class="btn-industrial w-full py-2 text-sm mt-2">
+            Copy Code
+          </button>
+          <div id="host-wait-status" class="text-sm font-bold text-white/75 mt-3">
+            Waiting for Player 2...
+          </div>
+        </div>
+
+        <div class="space-y-3">
+          <button id="btn-start-expedition" class="btn-hazard w-full" disabled>
+            Start Game
+          </button>
+          <button id="btn-solo-practice" class="btn-industrial w-full">
+            Play Solo
+          </button>
+          <button class="btn-back-menu btn-industrial w-full">
+            Back
+          </button>
+        </div>
+      </div>
+
+      <!-- VIEW 3: Join Room Panel -->
+      <div id="menu-join-view" class="hidden menu-card p-7 text-left">
+        <h2 class="text-2xl font-black text-white uppercase mb-2">Join Room</h2>
+        <p class="text-sm font-semibold text-white/70 mb-4">
+          Enter the 5-letter room code from the host.
+        </p>
+
+        <input
+          id="input-join-code"
+          type="text"
+          maxlength="5"
+          placeholder="CODE"
+          class="input-industrial w-full mb-4"
+          autocomplete="off"
+          spellcheck="false"
+        />
+
+        <div class="space-y-3">
+          <button id="btn-join-session" class="btn-hazard w-full">
+            Join Game
+          </button>
+          <button class="btn-back-menu btn-industrial w-full">
+            Back
+          </button>
+        </div>
+      </div>
+
+      <!-- VIEW 4: How To Play Panel -->
+      <div id="menu-howto-view" class="hidden menu-card p-7 text-left">
+        <h2 class="text-2xl font-black text-white uppercase mb-4">How To Play</h2>
+        <ul class="text-base font-bold text-white/90 space-y-3 mb-6">
+          <li>1. Explore the dark maze with your partner.</li>
+          <li>2. Find the 2 keys hidden in the maze. Each player can only carry 1 key.</li>
+          <li>3. Bring both keys to the big exit door and press [E] to unlock it.</li>
+          <li>4. Stand together at the exit door before the 5-minute timer runs out.</li>
+        </ul>
+        <div class="text-sm font-extrabold text-yellow-400 mb-6">
+          Controls: WASD to Move &bull; Shift to Run &bull; E to Interact &bull; F for Flashlight
+        </div>
+        <button class="btn-back-menu btn-industrial w-full">Back</button>
+      </div>
+
+      <!-- VIEW 5: Credits Panel -->
+      <div id="menu-credits-view" class="hidden menu-card p-7 text-center">
+        <h2 class="text-2xl font-black text-white uppercase mb-4">Credits</h2>
+        <p class="text-lg font-extrabold text-white mb-2">SECTOR-09</p>
+        <p class="text-sm font-bold text-white/70 mb-6">
+          Co-op 3D Maze Escape Game<br />Built with Three.js &amp; WebRTC
+        </p>
+        <button class="btn-back-menu btn-industrial w-full">Back</button>
+      </div>
+
+      <!-- Simple Status Line -->
+      <div id="lobby-log" class="mt-5 text-sm font-extrabold text-white hud-shadow"></div>
+      <div class="hidden">
+        <span id="lobby-link-state"></span>
+        <span id="lobby-ping"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Clean End-Game Screen -->
+  <div id="endgame-overlay" class="hidden fixed inset-0 z-40 bg-black/90 flex flex-col items-center justify-center p-6">
+    <div class="menu-card w-full max-w-md p-8 text-center">
+      <div id="endgame-tag" class="hidden"></div>
+      <h2 id="endgame-title" class="text-4xl font-black text-white uppercase mb-3">
+        ESCAPED!
       </h2>
-      <p id="endgame-desc" class="text-xs text-[#888884] leading-relaxed mb-6">
-        Both operatives successfully unlocked the perimeter blast door and cleared containment prior to lockdown.
+      <p id="endgame-desc" class="text-base font-bold text-white/80 mb-6">
+        You and your partner escaped the maze!
       </p>
-      <div class="border-t border-b border-[#292929] py-4 mb-6 grid grid-cols-2 gap-4 font-mono-tech text-xs">
+      <div class="bg-black/60 rounded-lg p-4 mb-6 flex justify-around text-base font-extrabold">
         <div>
-          <div class="text-[10px] text-[#888884] tracking-[0.18em]">TIME REMAINING</div>
-          <div id="endgame-time" class="text-base text-[#F4F4F0] mt-1">02:14</div>
+          <div class="text-xs text-white/60 uppercase">Time Left</div>
+          <div id="endgame-time" class="text-2xl text-yellow-400 mt-1">02:14</div>
         </div>
         <div>
-          <div class="text-[10px] text-[#888884] tracking-[0.18em]">MAZE SEED</div>
-          <div id="endgame-seed" class="text-base text-[#F4F4F0] mt-1">#849201</div>
+          <div class="text-xs text-white/60 uppercase">Seed</div>
+          <div id="endgame-seed" class="text-2xl text-white mt-1">#849201</div>
         </div>
       </div>
-      <div class="flex flex-col sm:flex-row gap-3">
-        <button id="btn-rematch" class="btn-hazard flex-1">NEW EXPEDITION (NEW SEED)</button>
-        <button id="btn-return-lobby" class="btn-industrial flex-1">RETURN TO LOBBY</button>
+      <div class="flex flex-col gap-3">
+        <button id="btn-rematch" class="btn-hazard w-full">Play Again</button>
+        <button id="btn-return-lobby" class="btn-industrial w-full">Main Menu</button>
       </div>
     </div>
   </div>
@@ -3173,6 +3164,51 @@
       buildMazeScene(849201);
       requestAnimationFrame(animate);
     };
+
+    // Main Menu Navigation Wiring
+    const menuViews = {
+      main: document.getElementById('menu-main-view'),
+      create: document.getElementById('menu-create-view'),
+      join: document.getElementById('menu-join-view'),
+      howto: document.getElementById('menu-howto-view'),
+      credits: document.getElementById('menu-credits-view')
+    };
+
+    function showMenuView(viewName) {
+      Object.values(menuViews).forEach(el => el && el.classList.add('hidden'));
+      if (menuViews[viewName]) menuViews[viewName].classList.remove('hidden');
+      ui.lobbyLog.textContent = '';
+    }
+
+    document.getElementById('nav-create-room').addEventListener('click', () => {
+      showMenuView('create');
+      if (!state.roomCode && !ui.btnCreateSession.disabled) {
+        ui.btnCreateSession.click(); // Automatically generate room code when opening Create Room
+      }
+    });
+
+    document.getElementById('nav-join-room').addEventListener('click', () => {
+      showMenuView('join');
+      setTimeout(() => ui.inputJoinCode.focus(), 50);
+    });
+
+    document.getElementById('nav-how-to-play').addEventListener('click', () => {
+      showMenuView('howto');
+    });
+
+    document.getElementById('nav-credits').addEventListener('click', () => {
+      showMenuView('credits');
+    });
+
+    document.querySelectorAll('.btn-back-menu').forEach(btn => {
+      btn.addEventListener('click', () => showMenuView('main'));
+    });
+
+    // Clicking anywhere on the Pause screen locks the cursor back into the game
+    ui.pauseOverlay.addEventListener('click', () => {
+      ui.pauseOverlay.classList.add('hidden');
+      requestPointerLock();
+    });
   </script>
 </body>
 </html>
